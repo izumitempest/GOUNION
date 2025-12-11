@@ -5,8 +5,7 @@ from . import crud, models, schemas
 from .database import SessionLocal, engine
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from typing import Optional
-from jose import JWTError, jwt
+from typing import Optional, List
 from jose import JWTError, jwt
 import os
 import shutil
@@ -14,15 +13,20 @@ import uuid
 from fastapi.staticfiles import StaticFiles
 from fastapi import File, UploadFile
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 load_dotenv()
-models.Base.metadata.create_all(bind=engine)
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# Mount media directory
+# Supabase Configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Mount media directory (fallback)
 os.makedirs("media", exist_ok=True)
 app.mount("/media", StaticFiles(directory="media"), name="media")
 
@@ -35,7 +39,7 @@ def get_db():
         db.close()
 
 # Auth Configuration
-SECRET_KEY = "YOUR_SECRET_KEY_HERE" # In production, use env var
+SECRET_KEY = os.getenv("SECRET_KEY") # In production, use env var
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -224,12 +228,32 @@ async def upload_file(file: UploadFile = File(...), current_user: models.User = 
     # Generate unique filename
     file_extension = file.filename.split(".")[-1]
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
-    file_path = f"media/{unique_filename}"
     
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        # Read file content
+        file_content = await file.read()
         
-    return {"filename": unique_filename, "url": f"/media/{unique_filename}"}
+        # Upload to Supabase Storage
+        bucket_name = "post_images" # Ensure this bucket exists in your Supabase project
+        response = supabase.storage.from_(bucket_name).upload(
+            path=unique_filename,
+            file=file_content,
+            file_options={"content-type": file.content_type}
+        )
+        
+        # Get Public URL
+        public_url = supabase.storage.from_(bucket_name).get_public_url(unique_filename)
+        
+        return {"filename": unique_filename, "url": public_url}
+        
+    except Exception as e:
+        # Fallback to local storage if Supabase fails
+        print(f"Supabase upload failed: {e}. Falling back to local storage.")
+        file_path = f"media/{unique_filename}"
+        file.file.seek(0) # Reset file pointer
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        return {"filename": unique_filename, "url": f"/media/{unique_filename}"}
 
 @app.get("/university/{university_name}/users", response_model=List[schemas.User])
 def get_users_by_university(university_name: str, db: Session = Depends(get_db)):
