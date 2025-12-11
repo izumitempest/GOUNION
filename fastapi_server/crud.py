@@ -188,3 +188,12 @@ def search_users(db: Session, query: str):
 
 def search_posts(db: Session, query: str):
     return db.query(models.Post).filter(models.Post.caption.ilike(f"%{query}%")).all()
+
+def get_users_by_university(db: Session, university_name: str):
+    return db.query(models.User).join(models.Profile).filter(models.Profile.university.ilike(f"%{university_name}%")).all()
+
+def get_posts_by_university(db: Session, university_name: str):
+    # Get users from that university
+    users = get_users_by_university(db, university_name)
+    user_ids = [u.id for u in users]
+    return db.query(models.Post).filter(models.Post.user_id.in_(user_ids)).order_by(models.Post.created_at.desc()).all()

@@ -7,13 +7,24 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
+from jose import JWTError, jwt
 import os
+import shutil
+import uuid
+from fastapi.staticfiles import StaticFiles
+from fastapi import File, UploadFile
 from dotenv import load_dotenv
 
 load_dotenv()
 models.Base.metadata.create_all(bind=engine)
 
+models.Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
+
+# Mount media directory
+os.makedirs("media", exist_ok=True)
+app.mount("/media", StaticFiles(directory="media"), name="media")
 
 # Dependency
 def get_db():
@@ -207,3 +218,23 @@ def get_notifications(db: Session = Depends(get_db), current_user: models.User =
 def mark_notifications_read(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     crud.mark_notifications_read(db, user_id=current_user.id)
     return {"status": "marked read"}
+
+@app.post("/upload/")
+async def upload_file(file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
+    # Generate unique filename
+    file_extension = file.filename.split(".")[-1]
+    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    file_path = f"media/{unique_filename}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    return {"filename": unique_filename, "url": f"/media/{unique_filename}"}
+
+@app.get("/university/{university_name}/users", response_model=List[schemas.User])
+def get_users_by_university(university_name: str, db: Session = Depends(get_db)):
+    return crud.get_users_by_university(db, university_name=university_name)
+
+@app.get("/university/{university_name}/posts", response_model=List[schemas.Post])
+def get_posts_by_university(university_name: str, db: Session = Depends(get_db)):
+    return crud.get_posts_by_university(db, university_name=university_name)
