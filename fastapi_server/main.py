@@ -119,6 +119,25 @@ def read_feed(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), cu
 def create_post(post: schemas.PostCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     return crud.create_post(db=db, post=post, user_id=current_user.id)
 
+@app.delete("/posts/{post_id}")
+def delete_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    post = crud.get_post(db, post_id=post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this post")
+    crud.delete_post(db=db, post_id=post_id)
+    return {"status": "success", "message": "Post deleted"}
+
+@app.put("/posts/{post_id}", response_model=schemas.Post)
+def update_post(post_id: int, post_update: schemas.PostUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    post = crud.get_post(db, post_id=post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this post")
+    return crud.update_post(db=db, post_id=post_id, post_update=post_update)
+
 @app.post("/posts/{post_id}/like")
 def like_post(post_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     post = crud.get_post(db, post_id=post_id)
@@ -133,6 +152,20 @@ def create_comment(post_id: int, comment: schemas.CommentCreate, db: Session = D
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     return crud.create_comment(db=db, comment=comment, user_id=current_user.id, post_id=post_id)
+
+@app.delete("/comments/{comment_id}")
+def delete_comment(comment_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    comment = crud.get_comment(db, comment_id=comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    
+    # Allow deletion if user owns the comment OR owns the post
+    post = crud.get_post(db, post_id=comment.post_id)
+    if comment.user_id != current_user.id and (not post or post.user_id != current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this comment")
+        
+    crud.delete_comment(db=db, comment_id=comment_id)
+    return {"status": "success", "message": "Comment deleted"}
 
 @app.post("/friend-request/{receiver_id}", response_model=schemas.FriendRequest)
 def send_friend_request(receiver_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):

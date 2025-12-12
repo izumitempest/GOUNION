@@ -66,6 +66,26 @@ def create_post(db: Session, post: schemas.PostCreate, user_id: int, image_path:
     db.refresh(db_post)
     return db_post
 
+def delete_post(db: Session, post_id: int):
+    db_post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if db_post:
+        db.delete(db_post)
+        db.commit()
+    return db_post
+
+def update_post(db: Session, post_id: int, post_update: schemas.PostUpdate):
+    db_post = get_post(db, post_id)
+    if not db_post:
+        return None
+    
+    update_data = post_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_post, key, value)
+    
+    db.commit()
+    db.refresh(db_post)
+    return db_post
+
 def create_notification(db: Session, user_id: int, sender_id: int, type: str, post_id: int = None):
     if user_id == sender_id:
         return # Don't notify self actions
@@ -112,6 +132,16 @@ def create_comment(db: Session, comment: schemas.CommentCreate, user_id: int, po
     if post:
         create_notification(db, user_id=post.user_id, sender_id=user_id, type="comment", post_id=post_id)
         
+    return db_comment
+
+def get_comment(db: Session, comment_id: int):
+    return db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+
+def delete_comment(db: Session, comment_id: int):
+    db_comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if db_comment:
+        db.delete(db_comment)
+        db.commit()
     return db_comment
 
 def get_friend_request(db: Session, request_id: int):
