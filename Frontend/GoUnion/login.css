@@ -1,83 +1,146 @@
-:root {
-  --primary: #4f8cff;
-  --primary-glow: rgba(79, 140, 255, 0.45);
-  --bg: #0b0d24;
-  --text-light: #ced4f4;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  padding: 0;
-  font-family: "Poppins", sans-serif;
-  background: radial-gradient(circle at 20% 20%, #14162f, #0b0d24, #050516);
-  color: #fff;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
 }
 
 .login-container {
-  background: rgba(0,0,0,0.35);
-  padding: 40px;
-  border-radius: 20px;
-  backdrop-filter: blur(12px);
-  text-align: center;
-  width: 320px;
-  box-shadow: 0 0 20px var(--primary-glow);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 50px 40px;
+    border-radius: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 420px;
+    animation: slideUp 0.6s ease;
 }
 
-.login-container h1 {
-  font-size: 28px;
-  margin-bottom: 10px;
-  background: linear-gradient(135deg, #8bb3ff, #4f8cff);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.login-container p {
-  margin-bottom: 20px;
-  color: var(--text-light);
+h1 {
+    font-size: 32px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+    text-align: center;
 }
 
-.login-container input {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 15px;
-  border-radius: 12px;
-  border: 1px solid var(--glass-border, #fff3);
-  background: rgba(255,255,255,0.05);
-  color: #fff;
-  font-size: 16px;
-  outline: none;
-  transition: all 0.3s ease;
+.login-container > p {
+    text-align: center;
+    color: #718096;
+    margin-bottom: 32px;
+    font-size: 14px;
 }
 
-.login-container input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 8px var(--primary-glow);
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
 }
 
-.login-container button {
-  width: 100%;
-  padding: 12px;
-  border-radius: 12px;
-  border: none;
-  background: var(--primary);
-  color: #fff;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+input {
+    padding: 14px 18px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 15px;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s ease;
+    outline: none;
 }
 
-.login-container button:hover {
-  background: #3677e0;
-  box-shadow: 0 0 12px var(--primary-glow);
+input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+button {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 #error {
-  color: #ff5555;
-  font-size: 14px;
-  margin-top: 10px;
-  display: none;
+    color: #e53e3e;
+    font-size: 14px;
+    margin-top: 12px;
+    text-align: center;
+    padding: 10px;
+    background: rgba(229, 62, 62, 0.1);
+    border-radius: 8px;
+}
+
+.toggle-text {
+    text-align: center;
+    margin-top: 24px;
+    color: #718096;
+    font-size: 14px;
+}
+
+.toggle-text a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.toggle-text a:hover {
+    color: #764ba2;
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .login-container {
+        padding: 40px 30px;
+    }
+    
+    h1 {
+        font-size: 28px;
+    }
 }

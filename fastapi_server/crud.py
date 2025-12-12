@@ -59,8 +59,8 @@ def get_feed_posts(db: Session, user_id: str, skip: int = 0, limit: int = 100):
     
     return db.query(models.Post).filter(models.Post.user_id.in_(feed_user_ids)).order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
 
-def create_post(db: Session, post: schemas.PostCreate, user_id: str, image_path: str = None):
-    db_post = models.Post(**post.dict(), user_id=user_id, image=image_path)
+def create_post(db: Session, post: schemas.PostCreate, user_id: str):
+    db_post = models.Post(**post.dict(), user_id=user_id)
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
@@ -111,13 +111,36 @@ def mark_notifications_read(db: Session, user_id: str):
     db.commit()
 
 def like_post(db: Session, post: models.Post, user: models.User):
-    if user in post.likes:
-        post.likes.remove(user)
+    # Check if already liked
+    from sqlalchemy import and_, delete, insert
+    existing_like = db.execute(
+        db.query(models.post_likes).filter(
+            and_(
+                models.post_likes.c.post_id == post.id,
+                models.post_likes.c.user_id == user.id
+            )
+        ).exists().select()
+    ).scalar()
+    
+    if existing_like:
+        # Unlike
+        db.execute(
+            delete(models.post_likes).where(
+                and_(
+                    models.post_likes.c.post_id == post.id,
+                    models.post_likes.c.user_id == user.id
+                )
+            )
+        )
         is_liked = False
     else:
-        post.likes.append(user)
+        # Like
+        db.execute(
+            insert(models.post_likes).values(post_id=post.id, user_id=user.id)
+        )
         is_liked = True
         create_notification(db, user_id=post.user_id, sender_id=user.id, type="like", post_id=post.id)
+    
     db.commit()
     return is_liked
 
@@ -133,6 +156,9 @@ def create_comment(db: Session, comment: schemas.CommentCreate, user_id: str, po
         create_notification(db, user_id=post.user_id, sender_id=user_id, type="comment", post_id=post_id)
         
     return db_comment
+
+def get_comments(db: Session, post_id: int):
+    return db.query(models.Comment).filter(models.Comment.post_id == post_id).order_by(models.Comment.created_at.asc()).all()
 
 def get_comment(db: Session, comment_id: int):
     return db.query(models.Comment).filter(models.Comment.id == comment_id).first()

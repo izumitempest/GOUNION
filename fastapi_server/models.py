@@ -90,6 +90,9 @@ class FriendRequest(Base):
     status = Column(String, default="pending") # pending, accepted, rejected
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+    sender = relationship("User", foreign_keys=[sender_id])
+    receiver = relationship("User", foreign_keys=[receiver_id])
+
 class Follow(Base):
     __tablename__ = "follows"
 

@@ -23,11 +23,15 @@
 
     <main class="main">
 
-        <h1 class="title">Select Your Graduation Year</h1>
+        <h1 class="title">Discover Alumni</h1>
 
-        <p class="subtitle">Connect with alumni from your class</p>
+        <div class="search-section">
+            <input type="text" id="searchInput" placeholder="Search by name, university, or graduation year..." style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px;">
+        </div>
 
-        <div class="grid" id="yearGrid"></div>
+        <div id="resultsContainer" class="results-container">
+            <!-- User cards will be injected here -->
+        </div>
 
     </main>
 

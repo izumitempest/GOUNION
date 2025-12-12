@@ -34,9 +34,8 @@ app.add_middleware(
 
 # Supabase Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 # Mount media directory (fallback)
 os.makedirs("media", exist_ok=True)
 app.mount("/media", StaticFiles(directory="media"), name="media")
@@ -185,6 +184,14 @@ def like_post(post_id: int, db: Session = Depends(get_db), current_user: models.
     is_liked = crud.like_post(db=db, post=post, user=current_user)
     return {"status": "liked" if is_liked else "unliked", "likes_count": len(post.likes)}
 
+@app.get("/posts/{post_id}/comments", response_model=List[schemas.Comment])
+def get_post_comments(post_id: int, db: Session = Depends(get_db)):
+    return crud.get_comments(db, post_id=post_id)
+
+@app.get("/posts/{post_id}/comments/{comment_id}", response_model=schemas.Comment)
+def get_comment(post_id: int, comment_id: int, db: Session = Depends(get_db)):
+    return crud.get_comment(db, post_id=post_id, comment_id=comment_id)
+
 @app.post("/posts/{post_id}/comments/", response_model=schemas.Comment)
 def create_comment(post_id: int, comment: schemas.CommentCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     post = crud.get_post(db, post_id=post_id)
@@ -315,12 +322,16 @@ async def upload_file(file: UploadFile = File(...), current_user: models.User = 
         
         # Get Public URL
         public_url = supabase.storage.from_(bucket_name).get_public_url(unique_filename)
-        
+
+        # Remove trailing ? if present (Supabase bug)
+        public_url = public_url.rstrip('?')
+
         return {"filename": unique_filename, "url": public_url}
         
     except Exception as e:
         # Fallback to local storage if Supabase fails
         print(f"Supabase upload failed: {e}. Falling back to local storage.")
+        os.makedirs(f"media/{current_user.id}", exist_ok=True)
         file_path = f"media/{unique_filename}"
         file.file.seek(0) # Reset file pointer
         with open(file_path, "wb") as buffer:

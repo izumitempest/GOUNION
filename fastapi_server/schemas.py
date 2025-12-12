@@ -53,6 +53,7 @@ class Comment(CommentBase):
 
 class PostBase(BaseModel):
     caption: Optional[str] = None
+    image: Optional[str] = None
 
 class PostCreate(PostBase):
     pass

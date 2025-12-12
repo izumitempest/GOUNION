@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoUnion • Profile</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo">GoUnion</div>
+        <nav class="menu">
+            <a href="home.html">Dashboard</a>
+            <a href="groups.html">Groups</a>
+            <a href="messages.html">Messages</a>
+            <a href="alumni.html">Alumni</a>
+            <a class="active" href="profile.html">Profile</a>
+        </nav>
+    </aside>
+
+    <button class="toggle-btn" id="toggleBtn">☰</button>
+
+    <main class="main">
+        <h1 class="title">My Profile</h1>
+
+        <div class="card" style="max-width: 600px; margin: 0 auto;">
+            <form id="profileForm">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Username</label>
+                    <input type="text" id="username" disabled style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Email</label>
+                    <input type="email" id="email" disabled style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Bio</label>
+                    <textarea id="bio" rows="3" placeholder="Tell us about yourself..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">University</label>
+                    <input type="text" id="university" placeholder="e.g. Oxford University" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Course</label>
+                    <input type="text" id="course" placeholder="e.g. Computer Science" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Graduation Year</label>
+                    <input type="number" id="graduation_year" placeholder="e.g. 2026" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+
+                <button type="submit" id="saveBtn" style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">Save Changes</button>
+            </form>
+        </div>
+    </main>
+
+<script src="profile.js"></script>
+</body>
+</html>
