@@ -59,32 +59,32 @@ submitBtn.addEventListener("click", async () => {
     }
 });
 
-// async function login(email, password) {
-//     // OAuth2 expects form data, not JSON
-//     const formData = new URLSearchParams();
-//     formData.append("username", email); // Supabase uses email as username for auth
-//     formData.append("password", password);
+async function login(email, password) {
+    // OAuth2 expects form data, not JSON
+    const formData = new URLSearchParams();
+    formData.append("username", email); // Supabase uses email as username for auth
+    formData.append("password", password);
 
-//     const response = await fetch(`${API_URL}/token`, {
-//         method: "POST",
-//         headers: {
-//             "Content-Type": "application/x-www-form-urlencoded",
-//         },
-//         body: formData,
-//     });
+    const response = await fetch(`${API_URL}/token`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData,
+    });
 
-//     const data = await response.json();
+    const data = await response.json();
 
-//     if (!response.ok) {
-//         throw new Error(data.detail || "Login failed");
-//     }
+    if (!response.ok) {
+        throw new Error(data.detail || "Login failed");
+    }
 
-//     // Save token
-//     localStorage.setItem("access_token", data.access_token);
+    // Save token
+    localStorage.setItem("access_token", data.access_token);
     
-//     // Redirect
-//     window.location.href = "home.html";
-// }
+    // Redirect
+    window.location.href = "home.html";
+}
 
 async function signup(email, username, password) {
     const response = await fetch(`${API_URL}/users/`, {

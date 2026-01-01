@@ -14,140 +14,115 @@ document.addEventListener('click', function(event) {
 });
 
 // Add click listeners to join buttons
+const API_URL = "http://127.0.0.1:8001";
+const token = localStorage.getItem("access_token");
+
 document.addEventListener('DOMContentLoaded', function() {
-    const joinButtons = document.querySelectorAll('.group-card button');
+    loadGroups();
+    setupSearch();
+    setupCreateGroup();
     
-    joinButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const groupName = this.closest('.group-card').querySelector('h3').textContent;
-            
-            if (this.textContent === 'Join') {
-                this.textContent = 'Joined ✓';
-                this.style.backgroundColor = '#10b981';
-                this.style.color = 'white';
-                alert(`You've joined "${groupName}"`);
-            } else {
-                this.textContent = 'Join';
-                this.style.backgroundColor = '#2563eb';
-                alert(`You've left "${groupName}"`);
-            }
-        });
-    });
-    
-    // Add click listeners to level cards
-    const levelCards = document.querySelectorAll('.level');
-    levelCards.forEach(level => {
-        level.addEventListener('click', function() {
-            const levelText = this.textContent;
-            alert(`Loading groups for ${levelText}`);
-            // Here you would typically filter groups by level
-        });
-    });
+    // Add CSS for fadeIn animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loading-text {
+            display: inline-block;
+            animation: pulse 0.5s ease infinite;
+        }
+    `;
+    document.head.appendChild(style);
 });
-function toggleMenu() {
-    const navLinks = document.getElementById('navLinks');
-    navLinks.classList.toggle('active');
+
+async function loadGroups() {
+    const grid = document.querySelector('.groups-grid');
+    grid.innerHTML = '<div style="color: white; text-align: center; grid-column: 1/-1;">Loading groups...</div>';
     
-    // Add menu toggle animation
-    const menuToggle = document.querySelector('.menu-toggle');
-    if (navLinks.classList.contains('active')) {
-        menuToggle.innerHTML = '✕';
-        menuToggle.style.transform = 'rotate(180deg)';
-    } else {
-        menuToggle.innerHTML = '☰';
-        menuToggle.style.transform = 'rotate(0)';
+    try {
+        const res = await fetch(`${API_URL}/groups/`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error("Failed to load groups");
+        
+        const groups = await res.json();
+        grid.innerHTML = '';
+        
+        if (groups.length === 0) {
+            grid.innerHTML = '<div style="color: #b0b0c0; text-align: center; grid-column: 1/-1;">No groups found. Create one?</div>';
+            return;
+        }
+        
+        groups.forEach(group => {
+            const card = createGroupCard(group);
+            grid.appendChild(card);
+        });
+        
+    } catch (err) {
+        console.error("Error loading groups:", err);
+        grid.innerHTML = '<div style="color: #ef4444; text-align: center; grid-column: 1/-1;">Failed to load groups.</div>';
     }
 }
 
-// Close mobile menu when clicking outside
-document.addEventListener('click', function(event) {
-    const navLinks = document.getElementById('navLinks');
-    const menuToggle = document.querySelector('.menu-toggle');
-    
-    if (!navLinks.contains(event.target) && !menuToggle.contains(event.target)) {
-        navLinks.classList.remove('active');
-        menuToggle.innerHTML = '☰';
-        menuToggle.style.transform = 'rotate(0)';
-    }
-});
+function createGroupCard(group) {
+    const card = document.createElement('div');
+    card.className = 'group-card';
+    card.innerHTML = `
+        <div class="group-icon">${group.name.charAt(0)}</div>
+        <h3>${group.name}</h3>
+        <p>${group.description || 'No description'}</p>
+        <div class="group-stats">
+            <span><i class="fas fa-users"></i> ${group.members_count || 0} Members</span>
+            <span><i class="fas fa-circle"></i> Active</span>
+        </div>
+        <button onclick="joinGroup('${group.id}', this, '${group.name}')">Join</button>
+    `;
+    return card;
+}
 
-// Enhanced button interactions
-document.addEventListener('DOMContentLoaded', function() {
-    const joinButtons = document.querySelectorAll('.group-card button');
+window.joinGroup = async function(groupId, btn, groupName) {
+    const originalText = btn.textContent;
+    btn.textContent = 'Joining...';
+    btn.disabled = true;
     
-    joinButtons.forEach(button => {
-        button.addEventListener('click', function(e) {
-            const groupName = this.closest('.group-card').querySelector('h3').textContent;
-            const card = this.closest('.group-card');
-            
-            // Add click effect
-            card.style.transform = 'scale(0.98)';
-            setTimeout(() => {
-                card.style.transform = '';
-            }, 150);
-            
-            if (this.textContent === 'Join') {
-                this.textContent = 'Joined ✓';
-                this.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
-                this.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.4)';
-                
-                // Add success animation
-                const originalTitle = this.innerHTML;
-                this.innerHTML = '<span class="loading-text">Joining...</span>';
-                setTimeout(() => {
-                    this.innerHTML = originalTitle;
-                    this.textContent = 'Joined ✓';
-                    showNotification(`Successfully joined "${groupName}"!`);
-                }, 500);
-            } else {
-                this.textContent = 'Join';
-                this.style.background = 'linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)';
-                this.style.boxShadow = '0 8px 20px rgba(109, 40, 217, 0.4)';
-                showNotification(`Left "${groupName}"`);
-            }
+    try {
+        const res = await fetch(`${API_URL}/groups/${groupId}/join`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}` }
         });
-    });
-    
-    // Level cards interaction
-    const levelCards = document.querySelectorAll('.level');
-    let activeLevel = null;
-    
-    levelCards.forEach(level => {
-        level.addEventListener('click', function() {
-            const levelText = this.textContent;
-            
-            // Remove active class from all levels
-            levelCards.forEach(l => {
-                l.style.background = 'rgba(25, 25, 35, 0.7)';
-                l.style.borderColor = 'rgba(255, 255, 255, 0.05)';
-                l.style.color = '#b0b0c0';
-            });
-            
-            // Add active state to clicked level
-            this.style.background = 'linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)';
-            this.style.borderColor = '#8b5cf6';
-            this.style.color = '#ffffff';
-            this.style.boxShadow = '0 10px 25px rgba(109, 40, 217, 0.3)';
-            
-            activeLevel = this;
-            
-            // Filter groups animation
-            const groups = document.querySelectorAll('.group-card');
-            groups.forEach(group => {
-                group.style.opacity = '0.5';
-                group.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    group.style.opacity = '1';
-                    group.style.transform = '';
-                }, 300);
-            });
-            
-            showNotification(`Filtering groups for ${levelText}`);
-        });
-    });
-    
+        
+        if (res.ok) {
+            btn.textContent = 'Joined ✓';
+            btn.style.background = 'linear-gradient(135deg, #10b981 0%, #34d399 100%)';
+            btn.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.4)';
+            showNotification(`Successfully joined "${groupName}"!`);
+        } else {
+            const data = await res.json();
+             // specific handling if already joined
+             if (res.status === 400 && data.detail.includes("already")) {
+                 btn.textContent = 'Joined ✓';
+                 btn.style.background = '#10b981';
+                 showNotification(`You are already in "${groupName}"`);
+             } else {
+                 throw new Error(data.detail || "Failed to join");
+             }
+        }
+    } catch (err) {
+        showNotification(err.message, 'error');
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+};
+
+function setupSearch() {
     // Search functionality
     const searchInput = document.querySelector('.search-box input');
+    if (!searchInput) return;
+    
     searchInput.addEventListener('input', function(e) {
         const searchTerm = e.target.value.toLowerCase();
         const groups = document.querySelectorAll('.group-card');
@@ -167,22 +142,46 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+}
+
+function setupCreateGroup() {
+    const btn = document.getElementById('createGroupBtn');
+    if (btn) {
+        btn.addEventListener('click', createNewGroup);
+    }
+}
+
+async function createNewGroup() {
+    const name = prompt("Enter Group Name:");
+    if (!name || !name.trim()) return;
     
-    // Add CSS for fadeIn animation
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+    const description = prompt("Enter Group Description:");
+    
+    try {
+        const res = await fetch(`${API_URL}/groups/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                name: name,
+                description: description || ""
+            })
+        });
+        
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || "Failed to create group");
         }
         
-        .loading-text {
-            display: inline-block;
-            animation: pulse 0.5s ease infinite;
-        }
-    `;
-    document.head.appendChild(style);
-});
+        showNotification("Group created successfully!", "success");
+        loadGroups(); // Reload list
+        
+    } catch (err) {
+        showNotification(err.message, "error");
+    }
+}
 
 // Notification function
 function showNotification(message) {

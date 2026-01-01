@@ -1,161 +1,65 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GoUnion • Groups</title>
-    <link rel="stylesheet" href="groups.css">
-    <meta name="theme-color" content="#0a0a0f">
-    <meta name="description" content="Discover and join groups on GoUnion">
-</head>
-<body>
-
+    <link rel="stylesheet" href="groups.css" />
+    <meta name="theme-color" content="#0a0a0f" />
+    <meta name="description" content="Discover and join groups on GoUnion" />
+  </head>
+  <body>
     <nav class="navbar">
-        <div class="logo">GoUnion</div>
-        <div class="menu-toggle" onclick="toggleMenu()">☰</div>
-        <ul class="nav-links" id="navLinks">
-            <li><a href="home.html">Dashboard</a></li>
-            <li><a class="active" href="groups.html">Groups</a></li>
-            <li><a href="messages.html">Messages</a></li>
-            <li><a href="alumni.html">Alumni</a></li>
-        </ul>
+      <div class="logo">GoUnion</div>
+      <div class="menu-toggle" onclick="toggleMenu()">☰</div>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="home.html">Dashboard</a></li>
+        <li><a class="active" href="groups.html">Groups</a></li>
+        <li><a href="messages.html">Messages</a></li>
+        <li><a href="alumni.html">Alumni</a></li>
+      </ul>
     </nav>
 
     <section class="container">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        "
+      >
+        <h1 class="page-title" style="margin-bottom: 0">Discover Groups</h1>
+        <button
+          id="createGroupBtn"
+          style="
+            background: linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+          "
+        >
+          <i class="fas fa-plus"></i> Create Group
+        </button>
+      </div>
 
-        <h1 class="page-title">Discover Groups</h1>
+      <div class="search-box">
+        <input type="text" placeholder="Search groups..." />
+      </div>
 
-        <div class="search-box">
-            <input type="text" placeholder="Search groups...">
-        </div>
-
-        <!-- Recommended -->
-        <h2 class="section-title">Recommended For You</h2>
-        <div class="groups-grid">
-            <div class="group-card">
-                <div class="group-image">
-                    <img src="images/global-student-network.jpg" alt="Global Student Network">
-                </div>
-                <h3>Global Student Network</h3>
-                <p>Connect with students worldwide.</p>
-                <button>Join</button>
-            </div>
-
-            <div class="group-card">
-                <div class="group-image">
-                    <img src="images/tech-innovators.jpg" alt="Tech Innovators Hub">
-                </div>
-                <h3>Tech Innovators Hub</h3>
-                <p>For coding, AI, and innovation lovers.</p>
-                <button>Join</button>
-            </div>
-        </div>
-
-        <!-- Department -->
-        <h2 class="section-title">By Department</h2>
-        <div class="groups-grid">
-
-            <div class="group-card">
-                <div class="group-image">
-                    <img src="images/csc-department.jpg" alt="CSC Department">
-                </div>
-                <h3>Faculty of Computing and Information Technology</h3>
-                <p>The Faculty of Computing and Information Technology (FCIT) is an academic division dedicated to providing high-quality education and research in the rapidly evolving field of technology.</p>
-                <button>Join</button>
-            </div>
-
-            <div class="group-card">
-                <div class="group-image">
-                    <img src="images/law-faculty.jpg" alt="Law Faculty Group">
-                </div>
-                <h3>Falculty of Law</h3>
-                <p>The faculty of law is an academic institution dedicated to imparting legal knowledge, advancing the understanding of justice, and producing competent professionals who uphold the rule of law.</p>
-                <button>Join</button>
-            </div>
-
-             <div class="group-card">
-                <div class="group-image">
-                    <img src="images/college-of-medicine.jpg" alt="Psychology Dept">
-                </div>
-                <h3>College of Medicine</h3>
-                <p>The College of Medicine is fundamentally dedicated to educating future physicians and advancing healthcare through service, research, and innovation.</p>
-                <button>Join</button>
-            </div>
-
-            <div class="group-card">
-                <div class="group-image">
-                    <img src="images/faculty-of-management.png" alt="Psychology Dept">
-                </div>
-                <h3>Falculty of Management and Social Sciences.</h3>
-                <p>The Faculty of Management and Social Sciences (FMSS) is a dynamic academic division dedicated to exploring human behavior, societal dynamics, and organizational leadership.</p>
-                <button>Join</button>
-            </div>
-
-             <div class="group-card">
-                <div class="group-image">
-                    <img src="images/faculty-of-nas.jpg" alt="Psychology Dept">
-                </div>
-                <h3>Faculty of Natural and applied sciences.</h3>
-                <p>The Faculty of Natural Sciences is a hub of innovation, discovery, and academic excellence dedicated to advancing knowledge in the fundamental sciences while fostering critical thinking, creativity, and problem-solving skills.</p>
-                <button>Join</button>
-            </div>
-            
-             <div class="group-card">
-                <div class="group-image">
-                    <img src="images/faculty-of-art.jpg" alt="Psychology Dept">
-                </div>
-                <h3>faculty of Art.</h3>
-                <p>The Faculty of Arts serves as a vital center for exploring the depth of human experience, nurturing creativity, critical thinking, and a deep appreciation for culture across various disciplines.</p>
-                <button>Join</button>
-            </div>
-
-             <div class="group-card">
-                <div class="group-image">
-                    <img src="images/faculty-of-education.jpg" alt="Psychology Dept">
-                </div>
-                <h3>Falculty of Education.</h3>
-                <p>The Faculty of Education is central to society's future, as it is dedicated to the noble profession of teaching, which shapes the character, caliber, and future of individuals.</p>
-                <button>Join</button>
-            </div>
-
-        </div>
-
-        <!-- Level -->
-        <h2 class="section-title">By Level</h2>
-        <div class="levels">
-            <div class="level">100 Level</div>
-            <div class="level">200 Level</div>
-            <div class="level">300 Level</div>
-            <div class="level">400 Level</div>
-            <div class="level">500 Level</div>
-        </div>
-
-        <!-- Alumni -->
-        <h2 class="section-title">Alumni Groups</h2>
-        <div class="groups-grid">
-
-            <div class="group-card">
-                <div class="group-image">
-                    <img src="images/class-of-2015.jpg" alt="Class of 2015">
-                </div>
-                <h3>Class of 2015</h3>
-                <p>Reconnect with former classmates.</p>
-                <button>Join</button>
-            </div>
-
-            <div class="group-card">
-                <div class="group-image">
-                    <img src="images/class-of-2020.jpg" alt="Class of 2020">
-                </div>
-                <h3>Class of 2020</h3>
-                <p>Recent alumni networking group.</p>
-                <button>Join</button>
-            </div>
-
-        </div>
-
+      <!-- Groups List -->
+      <div class="groups-grid">
+         <!-- Groups will be loaded here dynamically by groups.js -->
+         <div class="loading-state" style="text-align: center; color: #b0b0c0; grid-column: 1/-1; padding: 2rem;">
+            Loading groups...
+         </div>
+      </div>
     </section>
 
     <script src="groups.js"></script>
-</body>
+  </body>
 </html>

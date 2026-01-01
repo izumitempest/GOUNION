@@ -1,3 +1,10 @@
+const API_URL = "http://127.0.0.1:8001";
+const token = localStorage.getItem("access_token");
+
+if (!token) {
+    window.location.href = "login.html";
+}
+
 // Navigation toggle
 function toggleMenu() {
     const navLinks = document.getElementById('navLinks');
@@ -76,116 +83,151 @@ function updateCurrentDate() {
 }
 
 // Load user data
-function loadUserData() {
-    // In a real app, this would come from Firebase or your backend
-    const user = {
-        name: 'Alex Johnson',
-        email: 'alex@example.com',
-        year: '3rd Year',
-        major: 'Computer Science',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80'
-    };
+async function loadUserData() {
+    try {
+        const res = await fetch(`${API_URL}/users/me/`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error("Failed to load user");
+        
+        const user = await res.json();
+        
+        // Update welcome message
+        const usernameEl = document.querySelector('.username');
+        if (usernameEl) {
+            usernameEl.textContent = user.username + '!';
+        }
+        
+        // Update avatar
+        const avatarEl = document.querySelector('.user-avatar');
+        const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI1Y2Y2IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSI4IiByPSI0Ij48L2NpcmNsZT48cGF0aCBkPSJNMjAgMjF2LTIgYS00IDQtMCAwIDAtNC00IEggOCBhLTQgNC0wIDAtMC00IDQgdiAyIj48L3BhdGg+PC9zdmc+';
+        
+        if (avatarEl) {
+            avatarEl.src = (user.profile && user.profile.profile_picture) ? user.profile.profile_picture : defaultAvatar;
+        }
+        
+        // Load sidebar groups
+        loadSidebarGroups();
+        
+    } catch (err) {
+        console.error("Error loading user:", err);
+    }
+}
+
+async function loadSidebarGroups() {
+    const list = document.getElementById('sidebarGroups');
+    if (!list) return;
     
-    // Update welcome message
-    const usernameEl = document.querySelector('.username');
-    usernameEl.textContent = user.name.split(' ')[0] + '!';
-    
-    // Update avatar
-    const avatarEl = document.querySelector('.user-avatar');
-    if (avatarEl) {
-        avatarEl.src = user.avatar;
+    try {
+        const res = await fetch(`${API_URL}/groups/?limit=3`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error("Failed to load groups");
+        
+        const groups = await res.json();
+        list.innerHTML = '';
+        
+        if (groups.length === 0) {
+            list.innerHTML = '<div style="padding: 1rem; color: #b0b0c0; text-align: center;">No groups found</div>';
+            return;
+        }
+        
+        groups.forEach(group => {
+            const item = document.createElement('div');
+            item.className = 'group-item';
+            // Mock image based on group name
+            const initial = group.name.charAt(0).toUpperCase();
+            
+            // Re-using styles from home.html structure
+            item.innerHTML = `
+                <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #6d28d9, #8b5cf6); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">${initial}</div>
+                <div class="group-info">
+                    <h4>${group.name}</h4>
+                    <p>${group.members_count || 0} members</p>
+                </div>
+                <a href="groups.html" style="color: #b0b0c0;"><i class="fas fa-chevron-right"></i></a>
+            `;
+            list.appendChild(item);
+        });
+        
+    } catch (err) {
+        console.error("Sidebar groups error:", err);
+        list.innerHTML = '<div style="padding: 1rem; color: #ef4444; text-align: center;">Failed to load</div>';
     }
 }
 
 // Load feed posts
-function loadFeedPosts() {
+async function loadFeedPosts() {
     const feedContainer = document.getElementById('feedContainer');
     
-    // Simulate loading
-    setTimeout(() => {
-        const posts = [
-            {
-                id: 1,
-                user: {
-                    name: 'Sarah Miller',
-                    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?auto=format&fit=crop&w=400&q=80',
-                    year: 'International Relations'
-                },
-                content: 'Just organized a virtual cultural exchange event! Anyone interested in sharing about their country\'s traditions? Let me know! 🌍',
-                image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=800&q=80',
-                likes: 42,
-                comments: 8,
-                time: '2 hours ago',
-                group: 'Global Student Network'
-            },
-            {
-                id: 2,
-                user: {
-                    name: 'Michael Chen',
-                    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-                    year: 'Computer Science'
-                },
-                content: 'Working on a new AI project for automated study assistance. Looking for collaborators with experience in machine learning! #TechInnovators',
-                image: null,
-                likes: 56,
-                comments: 12,
-                time: '4 hours ago',
-                group: 'Tech Innovators Hub'
-            },
-            {
-                id: 3,
-                user: {
-                    name: 'Emma Wilson',
-                    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80',
-                    year: 'Alumni, Class of 2020'
-                },
-                content: 'Excited to announce our alumni networking event next Friday! There will be guest speakers from major tech companies. Perfect opportunity for current students to connect! 🎓',
-                image: 'https://images.unsplash.com/photo-1558021211-6d1403321394?auto=format&fit=crop&w=800&q=80',
-                likes: 89,
-                comments: 24,
-                time: '1 day ago',
-                group: 'Class of 2020'
-            }
-        ];
+    try {
+        // Using /posts/ instead of /feed/ to show global activity for now
+        const res = await fetch(`${API_URL}/posts/`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error("Failed to load feed");
+        
+        const posts = await res.json();
         
         feedContainer.innerHTML = '';
         
+        if (posts.length === 0) {
+            feedContainer.innerHTML = '<div class="no-posts">No posts yet. Follow someone or join a group!</div>';
+            return;
+        }
+
         posts.forEach(post => {
             const postElement = createPostElement(post);
             feedContainer.appendChild(postElement);
         });
-    }, 1500);
+    } catch (err) {
+        console.error("Error loading feed:", err);
+        feedContainer.innerHTML = '<div class="error-posts">Failed to load feed.</div>';
+    }
 }
 
 // Create post element
 function createPostElement(post) {
     const postEl = document.createElement('div');
     postEl.className = 'post-card';
+    
+    // Fallbacks for missing data
+    // Use a generic SVG data URI for missing avatars instead of external placeholder
+    const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOGI1Y2Y2IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSI4IiByPSI0Ij48L2NpcmNsZT48cGF0aCBkPSJNMjAgMjF2LTIgYS00IDQtMCAwIDAtNC00IEggOCBhLTQgNC0wIDAgMC00IDQgdiAyIj48L3BhdGg+PC9zdmc+';
+    
+    const userAvatar = post.user?.profile?.profile_picture || defaultAvatar;
+    const userName = post.user?.username || '';
+    const postImage = post.image; 
+    const isLiked = false; // TODO: Check if current user liked
+    
     postEl.innerHTML = `
         <div class="post-header">
             <div class="post-user">
-                <img src="${post.user.avatar}" alt="${post.user.name}" class="post-avatar">
+                <img src="${userAvatar}" alt="${userName}" class="post-avatar">
                 <div>
-                    <h4>${post.user.name}</h4>
-                    <p>${post.user.year}</p>
+                    <h4>${userName}</h4>
+                    <p>Student</p> 
                 </div>
             </div>
             <div class="post-meta">
-                <span class="post-time">${post.time}</span>
-                <span class="post-group">${post.group}</span>
+                <span class="post-time">${new Date(post.created_at).toLocaleDateString()}</span>
+                <!-- <span class="post-group">General</span> -->
             </div>
         </div>
         <div class="post-content">
-            <p>${post.content}</p>
-            ${post.image ? `<img src="${post.image}" alt="Post image" class="post-image">` : ''}
+            <p>${post.caption || ''}</p>
+            ${postImage ? `<img src="${postImage}" alt="Post image" class="post-image">` : ''}
         </div>
         <div class="post-stats">
-            <span><i class="fas fa-heart"></i> ${post.likes}</span>
-            <span><i class="fas fa-comment"></i> ${post.comments}</span>
+            <span id="likes-count-${post.id}"><i class="fas fa-heart"></i> ${post.likes_count || 0}</span>
+            <span><i class="fas fa-comment"></i> ${post.comments ? post.comments.length : 0}</span>
             <span><i class="fas fa-share"></i> Share</span>
         </div>
         <div class="post-actions">
-            <button class="post-action-btn like-btn" onclick="likePost(${post.id})">
+            <button class="post-action-btn like-btn ${isLiked ? 'active' : ''}" onclick="likePost(${post.id})">
                 <i class="far fa-heart"></i> Like
             </button>
             <button class="post-action-btn comment-btn" onclick="commentOnPost(${post.id})">
@@ -201,95 +243,126 @@ function createPostElement(post) {
 }
 
 // Create new post
-function createNewPost() {
+async function createNewPost() {
     const postContent = document.getElementById('postContent').value;
     const imageInput = document.getElementById('postImage');
+    const postBtn = document.getElementById('postBtn');
     
     if (!postContent.trim()) {
         showNotification('Please write something to post!', 'error');
         return;
     }
     
-    // Create post object
-    const newPost = {
-        content: postContent,
-        image: imageInput.files[0] ? URL.createObjectURL(imageInput.files[0]) : null
-    };
-    
-    // Add post to feed
-    const postElement = createPostElement({
-        id: Date.now(),
-        user: {
-            name: 'Alex Johnson',
-            avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
-            year: 'Computer Science'
-        },
-        content: newPost.content,
-        image: newPost.image,
-        likes: 0,
-        comments: 0,
-        time: 'Just now',
-        group: 'Your Post'
-    });
-    
-    const feedContainer = document.getElementById('feedContainer');
-    feedContainer.insertBefore(postElement, feedContainer.firstChild);
-    
-    // Clear form
-    document.getElementById('postContent').value = '';
-    imageInput.value = '';
-    
-    showNotification('Post published successfully!', 'success');
+    postBtn.disabled = true;
+    postBtn.textContent = 'Posting...';
+
+    try {
+        let imageUrl = null;
+        
+        // Upload image first if exists
+        if (imageInput.files[0]) {
+             const formData = new FormData();
+             formData.append("file", imageInput.files[0]);
+             
+             const uploadRes = await fetch(`${API_URL}/upload/`, { 
+                method: "POST", 
+                headers: { "Authorization": `Bearer ${token}` },
+                body: formData 
+            });
+            
+            if (uploadRes.ok) {
+                const data = await uploadRes.json();
+                imageUrl = data.url;
+            } else {
+                 console.error("Image upload failed");
+            }
+        }
+
+        const res = await fetch(`${API_URL}/posts/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                caption: postContent,
+                image: imageUrl
+            })
+        });
+
+        if (!res.ok) throw new Error("Failed to create post");
+        
+        const newPost = await res.json();
+        
+        // Add to feed immediately
+        const feedContainer = document.getElementById('feedContainer');
+        const postElement = createPostElement(newPost);
+        feedContainer.insertBefore(postElement, feedContainer.firstChild); // Prepend
+        
+        // Clear form
+        document.getElementById('postContent').value = '';
+        imageInput.value = '';
+        showNotification('Post published successfully!', 'success');
+        
+    } catch (err) {
+        showNotification(err.message, 'error');
+    } finally {
+        postBtn.disabled = false;
+        postBtn.textContent = 'Post';
+    }
 }
 
 // Load notifications
-function loadNotifications() {
+async function loadNotifications() {
     const notificationsList = document.querySelector('.notifications-list');
-    const notifications = [
-        {
-            id: 1,
-            type: 'group_join',
-            message: 'You have been added to "Tech Innovators Hub"',
-            time: '5 minutes ago',
-            read: false
-        },
-        {
-            id: 2,
-            type: 'message',
-            message: 'Sarah Miller sent you a message',
-            time: '1 hour ago',
-            read: false
-        },
-        {
-            id: 3,
-            type: 'event',
-            message: 'Upcoming event: Tech Innovators Meetup tomorrow',
-            time: '3 hours ago',
-            read: true
-        },
-        {
-            id: 4,
-            type: 'like',
-            message: 'Michael Chen liked your post',
-            time: '1 day ago',
-            read: true
+    
+    try {
+        const res = await fetch(`${API_URL}/notifications/`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error("Failed to load notifications");
+        
+        const notifications = await res.json();
+        
+        notificationsList.innerHTML = '';
+        
+        if (notifications.length === 0) {
+            notificationsList.innerHTML = '<div class="no-notifs">No new notifications</div>';
+            return;
         }
-    ];
-    
-    notificationsList.innerHTML = '';
-    
-    notifications.forEach(notif => {
-        const notifEl = document.createElement('div');
-        notifEl.className = `notification-item ${notif.read ? 'read' : 'unread'}`;
-        notifEl.innerHTML = `
-            <div class="notification-content">
-                <p>${notif.message}</p>
-                <span class="notification-time">${notif.time}</span>
-            </div>
-            ${!notif.read ? '<span class="notification-dot"></span>' : ''}
-        `;
-        notificationsList.appendChild(notifEl);
-    });
+        
+        // Update badge count
+        const notifCountEl = document.querySelector('.notification-count');
+        const unreadCount = notifications.filter(n => !n.is_read).length;
+        if (notifCountEl) {
+            notifCountEl.textContent = unreadCount;
+            notifCountEl.style.display = unreadCount > 0 ? 'flex' : 'none';
+        }
+
+        notifications.forEach(notif => {
+            const notifEl = document.createElement('div');
+            notifEl.className = `notification-item ${notif.is_read ? 'read' : 'unread'}`;
+            // Simple mapping for demo
+            let message = '';
+            if (notif.type === 'like') message = 'liked your post';
+            else if (notif.type === 'comment') message = 'commented on your post';
+            else if (notif.type === 'friend_request') message = 'sent you a friend request';
+            else if (notif.type === 'follow') message = 'started following you';
+            else message = 'New notification';
+
+            notifEl.innerHTML = `
+                <div class="notification-content">
+                    <p><strong>${notif.sender_id}</strong> ${message}</p>
+                    <span class="notification-time">${new Date(notif.created_at).toLocaleDateString()}</span>
+                </div>
+                ${!notif.is_read ? '<span class="notification-dot"></span>' : ''}
+            `;
+            notificationsList.appendChild(notifEl);
+        });
+    } catch (err) {
+        console.error("Error loading notifications:", err);
+    }
 }
 
 // Setup event listeners
@@ -360,14 +433,143 @@ function viewEvents() {
 }
 
 // Post interactions
-function likePost(postId) {
-    showNotification('Post liked!', 'success');
-    // In real app, update like count in database
+async function likePost(postId) {
+    try {
+        const res = await fetch(`${API_URL}/posts/${postId}/like`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            showNotification(data.status === 'liked' ? 'Post liked!' : 'Post unliked', 'success');
+            
+            // Update count UI
+            document.getElementById(`likes-count-${postId}`).innerHTML = `<i class="fas fa-heart"></i> ${data.likes_count}`;
+        }
+    } catch (err) {
+        console.error("Like failed", err);
+    }
 }
 
-function commentOnPost(postId) {
-    showNotification('Comment feature coming soon!', 'info');
-    // In real app, open comment modal
+// Comment System
+let currentPostIdForComments = null;
+
+async function commentOnPost(postId) {
+    currentPostIdForComments = postId;
+    createCommentModal(); // Ensure modal exists
+    
+    const modal = document.getElementById('commentModal');
+    const commentsList = document.getElementById('commentsList');
+    
+    // Show modal
+    modal.style.display = 'flex';
+    commentsList.innerHTML = '<div class="loading-comments">Loading discussion...</div>';
+    
+    try {
+        const res = await fetch(`${API_URL}/posts/${postId}/comments`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (!res.ok) throw new Error("Failed to load comments");
+        
+        const comments = await res.json();
+        renderComments(comments);
+        
+    } catch (err) {
+        commentsList.innerHTML = '<div class="error-comments">Failed to load comments</div>';
+    }
+}
+
+function renderComments(comments) {
+    const list = document.getElementById('commentsList');
+    list.innerHTML = '';
+    
+    if (comments.length === 0) {
+        list.innerHTML = '<div class="no-comments">No comments yet. Be the first!</div>';
+        return;
+    }
+    
+    comments.forEach(comment => {
+        const div = document.createElement('div');
+        div.className = 'comment-item';
+        // Note: comment.user is nested in schema
+        const username = comment.user ? comment.user.username : 'Unknown';
+        
+        div.innerHTML = `
+            <div class="comment-avatar">${username.charAt(0).toUpperCase()}</div>
+            <div class="comment-body">
+                <div class="comment-header">
+                    <span class="comment-user">${username}</span>
+                    <span class="comment-time">${new Date(comment.created_at).toLocaleDateString()}</span>
+                </div>
+                <p>${comment.content}</p>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+async function submitComment() {
+    const input = document.getElementById('newCommentText');
+    const content = input.value.trim();
+    if (!content) return;
+    
+    const btn = document.getElementById('sendCommentBtn');
+    btn.disabled = true;
+    
+    try {
+        const res = await fetch(`${API_URL}/posts/${currentPostIdForComments}/comments/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ content: content })
+        });
+        
+        if (!res.ok) throw new Error("Failed to post comment");
+        
+        // Refresh comments
+        input.value = '';
+        commentOnPost(currentPostIdForComments);
+        
+        // Update feed count
+        // Note: Ideally update local DOM directly to avoid reload
+        
+    } catch (err) {
+        showNotification(err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        input.focus();
+    }
+}
+
+function createCommentModal() {
+    if (document.getElementById('commentModal')) return;
+    
+    const modal = document.createElement('div');
+    modal.id = 'commentModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>Comments</h3>
+                <button onclick="document.getElementById('commentModal').style.display='none'" class="close-modal">&times;</button>
+            </div>
+            <div id="commentsList" class="modal-body"></div>
+            <div class="modal-footer">
+                <input type="text" id="newCommentText" placeholder="Write a comment..." onkeypress="if(event.key==='Enter') submitComment()">
+                <button id="sendCommentBtn" onclick="submitComment()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Close on outside click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    });
 }
 
 function sharePost(postId) {
@@ -664,6 +866,142 @@ style.textContent = `
     .notification-close:hover {
         color: #ffffff;
     }
+
+    /* Comment Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        animation: fadeIn 0.2s ease;
+    }
+
+    .modal-container {
+        background: #1a1a24;
+        width: 100%;
+        max-width: 500px;
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-direction: column;
+        max-height: 80vh;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        color: white;
+    }
+
+    .close-modal {
+        background: none;
+        border: none;
+        color: #b0b0c0;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+        overflow-y: auto;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .modal-footer {
+        padding: 1.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        gap: 1rem;
+    }
+
+    .modal-footer input {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.8rem 1rem;
+        border-radius: 20px;
+        color: white;
+    }
+
+    .modal-footer button {
+        background: #8b5cf6;
+        color: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .comment-item {
+        display: flex;
+        gap: 1rem;
+        animation: slideIn 0.3s ease;
+    }
+
+    .comment-avatar {
+        width: 35px;
+        height: 35px;
+        background: linear-gradient(135deg, #6d28d9, #8b5cf6);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        flex-shrink: 0;
+    }
+
+    .comment-body {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.8rem 1rem;
+        border-radius: 12px;
+        flex: 1;
+    }
+
+    .comment-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.3rem;
+    }
+
+    .comment-user {
+        color: white;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    .comment-time {
+        color: #b0b0c0;
+        font-size: 0.75rem;
+    }
+
+    .comment-body p {
+        margin: 0;
+        color: #e0e0e0;
+        font-size: 0.95rem;
+    }
 `;
 document.head.appendChild(style);
 
@@ -700,3 +1038,20 @@ setInterval(() => {
 setTimeout(() => {
     document.body.style.opacity = '1';
 }, 100);
+
+// Post Tool Functions
+function addImage() {
+    document.getElementById('postImage').click();
+}
+
+function addVideo() {
+    showNotification('Video upload coming soon!', 'info');
+}
+
+function addPoll() {
+    showNotification('Polls coming soon!', 'info');
+}
+
+function tagFriends() {
+    showNotification('Tagging friends coming soon!', 'info');
+}

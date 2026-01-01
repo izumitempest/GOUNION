@@ -155,144 +155,25 @@
 
             <!-- Right Column -->
             <div class="right-column">
-                <!-- Upcoming Events -->
-                <div class="events-card">
-                    <div class="section-header">
-                        <h2><i class="fas fa-calendar-star"></i> Upcoming Events</h2>
-                        <a href="#" class="view-all">View All</a>
-                    </div>
-                    <div class="events-list">
-                        <div class="event-item">
-                            <div class="event-date">
-                                <span class="event-day">18</span>
-                                <span class="event-month">OCT</span>
-                            </div>
-                            <div class="event-details">
-                                <h4>Tech Innovators Meetup</h4>
-                                <p><i class="fas fa-clock"></i> 6:00 PM - 8:00 PM</p>
-                                <p><i class="fas fa-map-marker-alt"></i> Virtual</p>
-                            </div>
-                            <button class="event-join-btn">Join</button>
-                        </div>
-                        <div class="event-item">
-                            <div class="event-date">
-                                <span class="event-day">22</span>
-                                <span class="event-month">OCT</span>
-                            </div>
-                            <div class="event-details">
-                                <h4>Alumni Networking</h4>
-                                <p><i class="fas fa-clock"></i> 4:00 PM - 6:00 PM</p>
-                                <p><i class="fas fa-map-marker-alt"></i> Campus Hall</p>
-                            </div>
-                            <button class="event-join-btn">Join</button>
-                        </div>
-                        <div class="event-item">
-                            <div class="event-date">
-                                <span class="event-day">25</span>
-                                <span class="event-month">OCT</span>
-                            </div>
-                            <div class="event-details">
-                                <h4>Study Group Session</h4>
-                                <p><i class="fas fa-clock"></i> 2:00 PM - 4:00 PM</p>
-                                <p><i class="fas fa-map-marker-alt"></i> Library Room 302</p>
-                            </div>
-                            <button class="event-join-btn">Join</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Your Groups -->
+                
+                <!-- Your Groups (converted to Suggested Groups) -->
                 <div class="groups-card">
                     <div class="section-header">
-                        <h2><i class="fas fa-users"></i> Your Groups</h2>
-                        <a href="groups.html" class="view-all">See All</a>
+                        <h2><i class="fas fa-users"></i> Suggested Groups</h2>
+                        <a href="groups.html" class="view-all">View All</a>
                     </div>
-                    <div class="groups-list">
-                        <div class="group-item">
-                            <img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=400&q=80" alt="Global Students">
-                            <div class="group-info">
-                                <h4>Global Student Network</h4>
-                                <p>12 new posts today</p>
-                            </div>
-                            <i class="fas fa-chevron-right"></i>
-                        </div>
-                        <div class="group-item">
-                            <img src="https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=400&q=80" alt="Tech Innovators">
-                            <div class="group-info">
-                                <h4>Tech Innovators Hub</h4>
-                                <p>8 members online</p>
-                            </div>
-                            <i class="fas fa-chevron-right"></i>
-                        </div>
-                        <div class="group-item">
-                            <img src="https://images.unsplash.com/photo-1558021211-6d1403321394?auto=format&fit=crop&w=400&q=80" alt="Alumni">
-                            <div class="group-info">
-                                <h4>Class of 2020</h4>
-                                <p>New event announced</p>
-                            </div>
-                            <i class="fas fa-chevron-right"></i>
-                        </div>
+                    <div class="groups-list" id="sidebarGroups">
+                        <!-- Groups will be loaded here -->
+                        <div style="padding: 1rem; color: #b0b0c0; text-align: center;">Loading...</div>
                     </div>
                 </div>
 
-                <!-- Trending Now -->
-                <div class="trending-card">
-                    <div class="section-header">
-                        <h2><i class="fas fa-fire"></i> Trending Now</h2>
-                    </div>
-                    <div class="trending-list">
-                        <div class="trending-item">
-                            <span class="trending-tag">#CampusLife</span>
-                            <p>125 new posts</p>
-                        </div>
-                        <div class="trending-item">
-                            <span class="trending-tag">#StudyTips</span>
-                            <p>89 discussions</p>
-                        </div>
-                        <div class="trending-item">
-                            <span class="trending-tag">#TechTalk</span>
-                            <p>67 members joined</p>
-                        </div>
-                        <div class="trending-item">
-                            <span class="trending-tag">#AlumniAdvice</span>
-                            <p>45 career tips</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Online Friends -->
-                <div class="friends-card">
-                    <div class="section-header">
-                        <h2><i class="fas fa-user-friends"></i> Friends Online</h2>
-                        <span class="online-count">12</span>
-                    </div>
-                    <div class="friends-list">
-                        <div class="friend-item">
-                            <img src="https://images.unsplash.com/photo-1494790108755-2616b612b786?auto=format&fit=crop&w=400&q=80" alt="Sarah">
-                            <div class="friend-info">
-                                <h4>Sarah Miller</h4>
-                                <p>Active now</p>
-                            </div>
-                            <button class="message-btn"><i class="fas fa-comment"></i></button>
-                        </div>
-                        <div class="friend-item">
-                            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80" alt="Michael">
-                            <div class="friend-info">
-                                <h4>Michael Chen</h4>
-                                <p>Online</p>
-                            </div>
-                            <button class="message-btn"><i class="fas fa-comment"></i></button>
-                        </div>
-                        <div class="friend-item">
-                            <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=400&q=80" alt="Emma">
-                            <div class="friend-info">
-                                <h4>Emma Wilson</h4>
-                                <p>Active 5m ago</p>
-                            </div>
-                            <button class="message-btn"><i class="fas fa-comment"></i></button>
-                        </div>
-                    </div>
-                </div>
+                <!-- Hidden sections (Events, Trending, Friends) until backend is ready -->
+                <!-- 
+                <div class="events-card">...</div>
+                <div class="trending-card">...</div>
+                <div class="friends-card">...</div>
+                -->
             </div>
         </div>
     </main>

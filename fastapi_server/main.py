@@ -372,3 +372,11 @@ def join_group(group_id: int, db: Session = Depends(get_db), current_user: model
 @app.get("/groups/{group_id}/members", response_model=List[schemas.GroupMember])
 def get_group_members(group_id: int, db: Session = Depends(get_db)):
     return crud.get_group_members(db, group_id=group_id)
+
+from fastapi.responses import RedirectResponse
+
+@app.get("/")
+async def read_root():
+    return RedirectResponse(url="/login.html")
+
+app.mount("/", StaticFiles(directory="Frontend/GoUnion", html=True), name="frontend")

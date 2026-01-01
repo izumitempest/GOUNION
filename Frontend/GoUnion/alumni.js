@@ -98,14 +98,58 @@ async function sendFriendRequest(userId) {
         });
 
         if (res.ok) {
-            alert("Friend request sent!");
+            showNotification("Friend request sent!", "success");
+            // Change button state
+            const btn = document.querySelector(`button[onclick="sendFriendRequest('${userId}')"]`);
+            if (btn) {
+                btn.textContent = "Request Sent";
+                btn.style.background = "#28a745";
+                btn.disabled = true;
+            }
         } else {
             const data = await res.json();
-            alert(data.detail || "Failed to send request");
+            showNotification(data.detail || "Failed to send request", "error");
         }
     } catch (err) {
-        alert("Error: " + err.message);
+        showNotification("Error: " + err.message, "error");
     }
+}
+
+// Notification function (Reusing standard toast)
+function showNotification(message, type="info") {
+    const existing = document.querySelector('.notification');
+    if (existing) existing.remove();
+    
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.innerHTML = message;
+    
+    const bgColor = type === 'success' ? 'linear-gradient(135deg, #10b981 0%, #34d399 100%)' :
+                    type === 'error' ? 'linear-gradient(135deg, #ef4444 0%, #fca5a5 100%)' :
+                    'linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)';
+    
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${bgColor};
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        z-index: 10000;
+        animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+        animation-fill-mode: forwards;
+        max-width: 300px;
+        font-weight: 500;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove
+    setTimeout(() => {
+        if (notification.parentNode) notification.remove();
+    }, 3000);
 }
 
 // Load all users on page load

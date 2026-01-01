@@ -116,6 +116,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize chat
     initializeChat();
+    
+    // DEMO MODE WARNING
+    showNotification("Demo Mode: Messaging backend is not yet connected.", "info");
 });
 
 // Simulate typing indicator
