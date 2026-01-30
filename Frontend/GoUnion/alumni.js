@@ -1,9 +1,9 @@
 const API_URL = "http://127.0.0.1:8001";
 const token = localStorage.getItem("access_token");
 
-// if (!token) {
-//     window.location.href = "login.html";
-// }
+ if (!token) {
+    window.location.href = "login.html";
+}
 
 const searchInput = document.getElementById("searchInput");
 const resultsContainer = document.getElementById("resultsContainer");

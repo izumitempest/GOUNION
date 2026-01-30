@@ -3,3 +3,6 @@ social/
 static/
 templates/
 gounion/
+venv/
+__pycache__/
+fastapi_server/__pycache__

@@ -2,12 +2,15 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
+
 class UserBase(BaseModel):
     username: str
-    email: Optional[str] = None
+
 
 class UserCreate(UserBase):
+    email: str
     password: str
+
 
 class User(UserBase):
     id: str
@@ -15,6 +18,7 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
+
 
 class ProfileBase(BaseModel):
     bio: Optional[str] = None
@@ -27,11 +31,14 @@ class ProfileBase(BaseModel):
     hometown: Optional[str] = None
     # birth_date: Optional[date] = None # Keeping it simple for now to avoid parsing issues
 
+
 class ProfileCreate(ProfileBase):
     pass
 
+
 class ProfileUpdate(ProfileBase):
     profile_picture: Optional[str] = None
+
 
 class Profile(ProfileBase):
     id: int
@@ -41,11 +48,14 @@ class Profile(ProfileBase):
     class Config:
         from_attributes = True
 
+
 class CommentBase(BaseModel):
     content: str
 
+
 class CommentCreate(CommentBase):
     pass
+
 
 class Comment(CommentBase):
     id: int
@@ -57,15 +67,19 @@ class Comment(CommentBase):
     class Config:
         from_attributes = True
 
+
 class PostBase(BaseModel):
     caption: Optional[str] = None
     image: Optional[str] = None
 
+
 class PostCreate(PostBase):
     pass
 
+
 class PostUpdate(PostBase):
     pass
+
 
 class Post(PostBase):
     id: int
@@ -79,11 +93,14 @@ class Post(PostBase):
     class Config:
         from_attributes = True
 
+
 class FriendRequestBase(BaseModel):
     pass
 
+
 class FriendRequestCreate(FriendRequestBase):
     receiver_id: str
+
 
 class FriendRequest(FriendRequestBase):
     id: int
@@ -97,8 +114,10 @@ class FriendRequest(FriendRequestBase):
     class Config:
         from_attributes = True
 
+
 class NotificationBase(BaseModel):
     pass
+
 
 class Notification(NotificationBase):
     id: int
@@ -113,6 +132,7 @@ class Notification(NotificationBase):
     class Config:
         from_attributes = True
 
+
 class UserDeviceBase(BaseModel):
     device_name: Optional[str] = None
     device_type: Optional[str] = None
@@ -121,8 +141,10 @@ class UserDeviceBase(BaseModel):
     ip_address: Optional[str] = None
     fcm_token: Optional[str] = None
 
+
 class UserDeviceCreate(UserDeviceBase):
     pass
+
 
 class UserDevice(UserDeviceBase):
     id: int
@@ -132,14 +154,17 @@ class UserDevice(UserDeviceBase):
     class Config:
         from_attributes = True
 
+
 class ActivityLogBase(BaseModel):
     action: str
     details: Optional[dict] = None
     ip_address: Optional[str] = None
     user_agent: Optional[str] = None
 
+
 class ActivityLogCreate(ActivityLogBase):
     pass
+
 
 class ActivityLog(ActivityLogBase):
     id: int
@@ -149,14 +174,17 @@ class ActivityLog(ActivityLogBase):
     class Config:
         from_attributes = True
 
+
 class LocationHistoryBase(BaseModel):
     latitude: float
     longitude: float
     city: Optional[str] = None
     country: Optional[str] = None
 
+
 class LocationHistoryCreate(LocationHistoryBase):
     pass
+
 
 class LocationHistory(LocationHistoryBase):
     id: int
@@ -166,25 +194,30 @@ class LocationHistory(LocationHistoryBase):
     class Config:
         from_attributes = True
 
+
 class GroupBase(BaseModel):
     name: str
     description: Optional[str] = None
     privacy: str = "public"
 
+
 class GroupCreate(GroupBase):
     pass
+
 
 class Group(GroupBase):
     id: int
     creator_id: str
     cover_image: Optional[str] = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
+
 class GroupMemberBase(BaseModel):
     pass
+
 
 class GroupMember(GroupMemberBase):
     id: int
@@ -192,13 +225,66 @@ class GroupMember(GroupMemberBase):
     user_id: str
     role: str
     joined_at: datetime
-    
+
     class Config:
         from_attributes = True
+
+
+class GroupPost(BaseModel):
+    id: int
+    group_id: int
+    user_id: str
+    caption: Optional[str] = None
+    image: Optional[str] = None
+    created_at: datetime
+    user: User
+
+    class Config:
+        from_attributes = True
+
+
+class MessageBase(BaseModel):
+    content: str
+
+
+class MessageCreate(MessageBase):
+    conversation_id: Optional[int] = None
+
+
+class Message(MessageBase):
+    id: int
+    conversation_id: int
+    sender_id: str
+    created_at: datetime
+    is_read: bool
+    sender: User
+
+    class Config:
+        from_attributes = True
+
+
+class ConversationBase(BaseModel):
+    name: Optional[str] = None
+
+
+class ConversationCreate(ConversationBase):
+    participant_ids: List[str]
+
+
+class Conversation(ConversationBase):
+    id: int
+    created_at: datetime
+    participants: List[User]
+    messages: List[Message] = []
+
+    class Config:
+        from_attributes = True
+
 
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 class TokenData(BaseModel):
     username: Optional[str] = None
