@@ -1,3 +1,4 @@
+# models.py
 from sqlalchemy import (
     Boolean,
     Column,
@@ -92,6 +93,10 @@ class Post(Base):
 
     user = relationship("User", back_populates="posts")
     comments = relationship("Comment", back_populates="post")
+
+    @property
+    def likes_count(self):
+        return len(self.likes or [])
 
     likes = relationship("User", secondary=post_likes, backref="liked_posts")
     dislikes = relationship("User", secondary=post_dislikes, backref="disliked_posts")

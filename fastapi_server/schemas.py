@@ -1,3 +1,5 @@
+# schemas.py
+
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -88,6 +90,7 @@ class Post(PostBase):
     created_at: datetime
     user: User
     comments: List[Comment] = []
+    likes: List[User] = []
     likes_count: int = 0
 
     class Config:

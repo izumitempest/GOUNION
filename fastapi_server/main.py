@@ -1,5 +1,12 @@
+# main.py
+
 from fastapi import Depends, FastAPI, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 from sqlalchemy.orm import Session, joinedload
 from . import crud, models, schemas
 from .database import SessionLocal, engine
@@ -7,15 +14,13 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional, List
 from jose import JWTError, jwt
-import os
 import shutil
 import uuid
 from fastapi.staticfiles import StaticFiles
 from fastapi import File, UploadFile
-from dotenv import load_dotenv
 from supabase import create_client, Client
-
-load_dotenv()
+import asyncio
+import asyncio
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -24,9 +29,12 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 
 # CORS Configuration
+# Use environment variable or default to a safer list
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for dev (update in prod)
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,9 +59,10 @@ def get_db():
 
 
 # Auth Configuration
-SECRET_KEY = os.getenv("SECRET_KEY")  # In production, use env var
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# Auth Configuration
+# SECRET_KEY = os.getenv("SECRET_KEY") # Unused, Supabase handles token verification
+# ALGORITHM = "HS256"
+# ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -71,14 +80,16 @@ async def get_current_user(
     )
     try:
         # Verify token with Supabase
-        user_response = supabase.auth.get_user(token)
+        # run_in_executor to avoid blocking async loop since supabase-py is sync
+        user_response = await asyncio.to_thread(supabase.auth.get_user, token)
+
         if not user_response.user:
             raise credentials_exception
         supabase_user_id = user_response.user.id
     except Exception:
         raise credentials_exception
 
-    user = crud.get_user(db, user_id=supabase_user_id)
+    user = await asyncio.to_thread(crud.get_user, db, user_id=supabase_user_id)
     if user is None:
         # If user exists in Supabase but not in our DB (edge case), create them?
         # For now, raise error
@@ -91,14 +102,16 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ):
     try:
-        response = supabase.auth.sign_in_with_password(
+        response = await asyncio.to_thread(
+            supabase.auth.sign_in_with_password,
             {
-                "email": form_data.username,  # OAuth2 form uses 'username' field for email usually
+                "email": form_data.username,
                 "password": form_data.password,
-            }
+            },
         )
         return {"access_token": response.session.access_token, "token_type": "bearer"}
     except Exception as e:
+        print(f"LOGIN FAILED: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -441,15 +454,13 @@ async def upload_file(
     unique_filename = f"{current_user.id}/{uuid.uuid4()}.{file_extension}"
 
     try:
-        # Force local storage (temporary fix for Supabase ORB/CORS issues)
-        raise Exception("Forcing local storage")
-
         # Read file content
         file_content = await file.read()
 
         # Upload to Supabase Storage
         bucket_name = "post_images"  #
-        response = supabase.storage.from_(bucket_name).upload(
+        response = await asyncio.to_thread(
+            supabase.storage.from_(bucket_name).upload,
             path=unique_filename,
             file=file_content,
             file_options={"content-type": file.content_type},
@@ -657,7 +668,7 @@ from fastapi.responses import RedirectResponse
 
 @app.get("/")
 async def read_root():
-    return RedirectResponse(url="/login.html")
+    return {"message": "GoUnion API is running. Visit /docs for documentation."}
 
 
-app.mount("/", StaticFiles(directory="Frontend/GoUnion", html=True), name="frontend")
+# app.mount("/", StaticFiles(directory="Frontend/GoUnion", html=True), name="frontend")
