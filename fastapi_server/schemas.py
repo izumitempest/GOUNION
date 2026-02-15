@@ -5,23 +5,6 @@ from typing import List, Optional
 from datetime import datetime
 
 
-class UserBase(BaseModel):
-    username: str
-
-
-class UserCreate(UserBase):
-    email: str
-    password: str
-
-
-class User(UserBase):
-    id: str
-    is_active: bool
-
-    class Config:
-        from_attributes = True
-
-
 class ProfileBase(BaseModel):
     bio: Optional[str] = None
     university: Optional[str] = None
@@ -46,6 +29,24 @@ class Profile(ProfileBase):
     id: int
     user_id: str
     profile_picture: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class UserBase(BaseModel):
+    username: str
+
+
+class UserCreate(UserBase):
+    email: str
+    password: str
+
+
+class User(UserBase):
+    id: str
+    is_active: bool
+    profile: Optional[Profile] = None
 
     class Config:
         from_attributes = True
@@ -291,3 +292,45 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+
+class StoryBase(BaseModel):
+    content: Optional[str] = None
+    image_url: Optional[str] = None
+
+
+class StoryCreate(StoryBase):
+    pass
+
+
+class StoryView(BaseModel):
+    id: int
+    story_id: int
+    user_id: str
+    viewed_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StoryLike(BaseModel):
+    id: int
+    story_id: int
+    user_id: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class Story(StoryBase):
+    id: int
+    user_id: str
+    created_at: datetime
+    expires_at: datetime
+    user: User
+    views: List[StoryView] = []
+    likes: List[StoryLike] = []
+
+    class Config:
+        from_attributes = True

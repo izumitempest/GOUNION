@@ -479,9 +479,12 @@ async def upload_file(
         print(f"Supabase upload failed: {e}. Falling back to local storage.")
         os.makedirs(f"media/{current_user.id}", exist_ok=True)
         file_path = f"media/{unique_filename}"
-        file.file.seek(0)  # Reset file pointer
+
+        # Write the file_content we already read
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(file_content)
+
+        print(f"File saved locally to: {file_path}")
         return {"filename": unique_filename, "url": f"/media/{unique_filename}"}
 
 
@@ -664,6 +667,44 @@ def create_conversation(
 
 
 from fastapi.responses import RedirectResponse
+
+
+# Stories
+@app.get("/stories/feed", response_model=List[schemas.Story])
+def read_stories_feed(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return crud.get_feed_stories(db, user_id=current_user.id)
+
+
+@app.post("/stories/", response_model=schemas.Story)
+def create_story(
+    story: schemas.StoryCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    return crud.create_story(db=db, story=story, user_id=current_user.id)
+
+
+@app.post("/stories/{story_id}/view")
+def view_story(
+    story_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    crud.view_story(db, story_id=story_id, user_id=current_user.id)
+    return {"status": "success"}
+
+
+@app.post("/stories/{story_id}/like")
+def like_story(
+    story_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    like = crud.like_story(db, story_id=story_id, user_id=current_user.id)
+    return {"status": "liked" if like else "unliked"}
 
 
 @app.get("/")

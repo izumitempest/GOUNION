@@ -1,0 +1,8 @@
+{
+  "name": "GoUnion",
+  "description": "A premium academic community platform for university students to connect, share, and collaborate within their university ecosystem.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

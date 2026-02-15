@@ -1,29 +1,7 @@
 # crud.py
 from datetime import datetime
+from sqlalchemy.orm import Session, joinedload, selectinload
 
-[
-    {
-        "TargetContent": "from sqlalchemy.orm import Session, joinedload",
-        "ReplacementContent": "from sqlalchemy.orm import Session, joinedload, selectinload",
-        "StartLine": 3,
-        "EndLine": 3,
-        "AllowMultiple": False,
-    },
-    {
-        "TargetContent": "        .options(joinedload(models.Post.user), joinedload(models.Post.likes))",
-        "ReplacementContent": "        .options(joinedload(models.Post.user), selectinload(models.Post.likes))",
-        "StartLine": 57,
-        "EndLine": 57,
-        "AllowMultiple": False,
-    },
-    {
-        "TargetContent": "        .options(joinedload(models.Post.user), joinedload(models.Post.likes))  # Fix N+1",
-        "ReplacementContent": "        .options(joinedload(models.Post.user), selectinload(models.Post.likes))  # Fix N+1",
-        "StartLine": 95,
-        "EndLine": 95,
-        "AllowMultiple": False,
-    },
-]
 from sqlalchemy import or_
 from . import models, schemas
 from passlib.context import CryptContext
@@ -32,11 +10,21 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def get_user(db: Session, user_id: str):
-    return db.query(models.User).filter(models.User.id == user_id).first()
+    return (
+        db.query(models.User)
+        .options(selectinload(models.User.profile))
+        .filter(models.User.id == user_id)
+        .first()
+    )
 
 
 def get_user_by_username(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
+    return (
+        db.query(models.User)
+        .options(selectinload(models.User.profile))
+        .filter(models.User.username == username)
+        .first()
+    )
 
 
 def create_user(db: Session, user: schemas.UserCreate, supabase_id: str):
@@ -77,7 +65,7 @@ def get_post(db: Session, post_id: int):
 def get_posts(db: Session, skip: int = 0, limit: int = 100):
     return (
         db.query(models.Post)
-        .options(joinedload(models.Post.user), joinedload(models.Post.likes))
+        .options(joinedload(models.Post.user), selectinload(models.Post.likes))
         .order_by(models.Post.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -115,7 +103,9 @@ def get_feed_posts(db: Session, user_id: str, skip: int = 0, limit: int = 100):
 
     return (
         db.query(models.Post)
-        .options(joinedload(models.Post.user), joinedload(models.Post.likes))  # Fix N+1
+        .options(
+            joinedload(models.Post.user), selectinload(models.Post.likes)
+        )  # Fix N+1
         .filter(models.Post.user_id.in_(feed_user_ids))
         .order_by(models.Post.created_at.desc())
         .offset(skip)
@@ -357,7 +347,12 @@ def get_friends(db: Session, user_id: str):
         else:
             friend_ids.append(req.sender_id)
 
-    return db.query(models.User).filter(models.User.id.in_(friend_ids)).all()
+    return (
+        db.query(models.User)
+        .options(selectinload(models.User.profile))
+        .filter(models.User.id.in_(friend_ids))
+        .all()
+    )
 
 
 def follow_user(db: Session, follower_id: str, following_id: str):
@@ -391,7 +386,12 @@ def unfollow_user(db: Session, follower_id: str, following_id: str):
 def get_following(db: Session, user_id: str):
     follows = db.query(models.Follow).filter(models.Follow.follower_id == user_id).all()
     following_ids = [f.following_id for f in follows]
-    return db.query(models.User).filter(models.User.id.in_(following_ids)).all()
+    return (
+        db.query(models.User)
+        .options(selectinload(models.User.profile))
+        .filter(models.User.id.in_(following_ids))
+        .all()
+    )
 
 
 def get_followers(db: Session, user_id: str):
@@ -399,7 +399,12 @@ def get_followers(db: Session, user_id: str):
         db.query(models.Follow).filter(models.Follow.following_id == user_id).all()
     )
     follower_ids = [f.follower_id for f in follows]
-    return db.query(models.User).filter(models.User.id.in_(follower_ids)).all()
+    return (
+        db.query(models.User)
+        .options(selectinload(models.User.profile))
+        .filter(models.User.id.in_(follower_ids))
+        .all()
+    )
 
 
 def log_activity(db: Session, user_id: str, activity: schemas.ActivityLogCreate):
@@ -610,3 +615,76 @@ def create_conversation(db: Session, conversation: schemas.ConversationCreate):
     db.commit()
     db.refresh(db_conversation)
     return db_conversation
+
+
+def create_story(db: Session, story: schemas.StoryCreate, user_id: str):
+    db_story = models.Story(**story.model_dump(), user_id=user_id)
+    db.add(db_story)
+    db.commit()
+    db.refresh(db_story)
+    return db_story
+
+
+def get_feed_stories(db: Session, user_id: str):
+    # Get following IDs
+    following_ids = [
+        f.following_id
+        for f in db.query(models.Follow)
+        .filter(models.Follow.follower_id == user_id)
+        .all()
+    ]
+    # Include self
+    story_user_ids = following_ids + [user_id]
+
+    now = datetime.utcnow()
+    return (
+        db.query(models.Story)
+        .options(
+            joinedload(models.Story.user).selectinload(models.User.profile),
+            selectinload(models.Story.views),
+            selectinload(models.Story.likes),
+        )
+        .filter(models.Story.user_id.in_(story_user_ids), models.Story.expires_at > now)
+        .order_by(models.Story.created_at.desc())
+        .all()
+    )
+
+
+def view_story(db: Session, story_id: int, user_id: str):
+    # Check if already viewed
+    existing = (
+        db.query(models.StoryView)
+        .filter(
+            models.StoryView.story_id == story_id, models.StoryView.user_id == user_id
+        )
+        .first()
+    )
+    if existing:
+        return existing
+
+    db_view = models.StoryView(story_id=story_id, user_id=user_id)
+    db.add(db_view)
+    db.commit()
+    db.refresh(db_view)
+    return db_view
+
+
+def like_story(db: Session, story_id: int, user_id: str):
+    # Toggle like
+    existing = (
+        db.query(models.StoryLike)
+        .filter(
+            models.StoryLike.story_id == story_id, models.StoryLike.user_id == user_id
+        )
+        .first()
+    )
+    if existing:
+        db.delete(existing)
+        db.commit()
+        return None
+
+    db_like = models.StoryLike(story_id=story_id, user_id=user_id)
+    db.add(db_like)
+    db.commit()
+    db.refresh(db_like)
+    return db_like

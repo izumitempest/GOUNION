@@ -276,3 +276,49 @@ class Message(Base):
 
     conversation = relationship("Conversation", back_populates="messages")
     sender = relationship("User")
+
+
+class Story(Base):
+    __tablename__ = "stories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"))
+    image_url = Column(String, nullable=True)
+    content = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    expires_at = Column(
+        DateTime,
+        default=lambda: datetime.datetime.utcnow() + datetime.timedelta(days=1),
+    )
+
+    user = relationship("User", backref="stories")
+    views = relationship(
+        "StoryView", back_populates="story", cascade="all, delete-orphan"
+    )
+    likes = relationship(
+        "StoryLike", back_populates="story", cascade="all, delete-orphan"
+    )
+
+
+class StoryView(Base):
+    __tablename__ = "story_views"
+
+    id = Column(Integer, primary_key=True, index=True)
+    story_id = Column(Integer, ForeignKey("stories.id"))
+    user_id = Column(String, ForeignKey("users.id"))
+    viewed_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    story = relationship("Story", back_populates="views")
+    user = relationship("User")
+
+
+class StoryLike(Base):
+    __tablename__ = "story_likes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    story_id = Column(Integer, ForeignKey("stories.id"))
+    user_id = Column(String, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    story = relationship("Story", back_populates="likes")
+    user = relationship("User")
