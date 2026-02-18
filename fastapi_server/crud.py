@@ -533,27 +533,90 @@ def get_group_members(db: Session, group_id: int):
     )
 
 
+def is_group_member(db: Session, group_id: int, user_id: str):
+    return (
+        db.query(models.GroupMember)
+        .filter(
+            models.GroupMember.group_id == group_id,
+            models.GroupMember.user_id == user_id,
+        )
+        .first()
+        is not None
+    )
+
+
 def create_group_post(
     db: Session, group_post: schemas.PostCreate, group_id: int, user_id: str
 ):
-    db_group_post = models.GroupPost(
-        **group_post.model_dump(), group_id=group_id, user_id=user_id
-    )
-    db.add(db_group_post)
+    # Ensure group_id is in the data
+    post_data = group_post.model_dump()
+    post_data["group_id"] = group_id
+    db_post = models.Post(**post_data, user_id=user_id)
+    db.add(db_post)
     db.commit()
-    db.refresh(db_group_post)
-    return db_group_post
+    db.refresh(db_post)
+    return db_post
 
 
 def get_group_posts(db: Session, group_id: int, skip: int = 0, limit: int = 50):
     return (
-        db.query(models.GroupPost)
-        .filter(models.GroupPost.group_id == group_id)
-        .order_by(models.GroupPost.created_at.desc())
+        db.query(models.Post)
+        .options(joinedload(models.Post.user), selectinload(models.Post.likes))
+        .filter(models.Post.group_id == group_id)
+        .order_by(models.Post.created_at.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
+
+
+def create_group_request(db: Session, group_id: int, user_id: str):
+    db_request = models.GroupRequest(group_id=group_id, user_id=user_id)
+    db.add(db_request)
+    db.commit()
+    db.refresh(db_request)
+
+    # Notify group creator
+    group = get_group(db, group_id)
+    if group:
+        create_notification(
+            db,
+            user_id=group.creator_id,
+            sender_id=user_id,
+            type="group_request",
+            group_id=group_id,
+        )
+
+    return db_request
+
+
+def get_group_requests(db: Session, group_id: int):
+    return (
+        db.query(models.GroupRequest)
+        .filter(
+            models.GroupRequest.group_id == group_id,
+            models.GroupRequest.status == "pending",
+        )
+        .all()
+    )
+
+
+def update_group_request_status(db: Session, request_id: int, status: str):
+    db_request = (
+        db.query(models.GroupRequest)
+        .filter(models.GroupRequest.id == request_id)
+        .first()
+    )
+    if not db_request:
+        return None
+
+    db_request.status = status
+    if status == "accepted":
+        join_group(db, db_request.group_id, db_request.user_id)
+
+    db.commit()
+    db.refresh(db_request)
+    return db_request
 
 
 # Messaging CRUD

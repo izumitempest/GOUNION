@@ -87,12 +87,16 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, ForeignKey("users.id"))
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     image = Column(String, nullable=True)
     caption = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", back_populates="posts")
-    comments = relationship("Comment", back_populates="post")
+    group = relationship("Group", back_populates="posts")
+    comments = relationship(
+        "Comment", back_populates="post", cascade="all, delete-orphan"
+    )
 
     @property
     def likes_count(self):
@@ -143,8 +147,11 @@ class Notification(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String, ForeignKey("users.id"))  # Receiver
     sender_id = Column(String, ForeignKey("users.id"))  # Actor
-    type = Column(String)  # 'like', 'comment', 'friend_request', 'follow'
+    type = Column(
+        String
+    )  # 'like', 'comment', 'friend_request', 'follow', 'group_invite', 'group_request'
     post_id = Column(Integer, ForeignKey("posts.id"), nullable=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -162,10 +169,16 @@ class Group(Base):
     privacy = Column(String, default="public")  # public, private, secret
     creator_id = Column(String, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    is_active = Column(Boolean, default=True)
 
     creator = relationship("User")
-    members = relationship("GroupMember", back_populates="group")
-    posts = relationship("GroupPost", back_populates="group")
+    members = relationship(
+        "GroupMember", back_populates="group", cascade="all, delete-orphan"
+    )
+    posts = relationship("Post", back_populates="group", cascade="all, delete-orphan")
+    requests = relationship(
+        "GroupRequest", back_populates="group", cascade="all, delete-orphan"
+    )
 
 
 class GroupMember(Base):
@@ -181,17 +194,16 @@ class GroupMember(Base):
     user = relationship("User")
 
 
-class GroupPost(Base):
-    __tablename__ = "group_posts"
+class GroupRequest(Base):
+    __tablename__ = "group_requests"
 
     id = Column(Integer, primary_key=True, index=True)
     group_id = Column(Integer, ForeignKey("groups.id"))
     user_id = Column(String, ForeignKey("users.id"))
-    caption = Column(String, nullable=True)
-    image = Column(String, nullable=True)
+    status = Column(String, default="pending")  # pending, accepted, rejected
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-    group = relationship("Group", back_populates="posts")
+    group = relationship("Group", back_populates="requests")
     user = relationship("User")
 
 

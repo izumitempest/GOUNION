@@ -521,28 +521,86 @@ def get_group(group_id: int, db: Session = Depends(get_db)):
     return group
 
 
-@app.post("/groups/{group_id}/join", response_model=schemas.GroupMember)
+@app.post("/groups/{group_id}/join", response_model=dict)
 def join_group(
     group_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return crud.join_group(db, group_id=group_id, user_id=current_user.id)
+    group = crud.get_group(db, group_id=group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if group.privacy == "public":
+        crud.join_group(db, group_id=group_id, user_id=current_user.id)
+        return {"status": "joined", "message": "Successfully joined the group"}
+    else:
+        # Check if already a member or has a pending request
+        members = crud.get_group_members(db, group_id=group_id)
+        if current_user.id in [m.user_id for m in members]:
+            return {"status": "joined", "message": "Already a member"}
+
+        requests = crud.get_group_requests(db, group_id=group_id)
+        if current_user.id in [r.user_id for r in requests]:
+            return {"status": "pending", "message": "Request already pending"}
+
+        crud.create_group_request(db, group_id=group_id, user_id=current_user.id)
+        return {"status": "pending", "message": "Join request sent to group admins"}
 
 
-@app.get("/groups/{group_id}/members", response_model=List[schemas.GroupMember])
+@app.get("/groups/{group_id}/requests/", response_model=List[schemas.GroupRequest])
+def list_group_requests(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    group = crud.get_group(db, group_id=group_id)
+    if not group or (group.creator_id != current_user.id):
+        raise HTTPException(
+            status_code=403, detail="Only group admins can see requests"
+        )
+    return crud.get_group_requests(db, group_id=group_id)
+
+
+@app.post("/groups/requests/{request_id}/approve")
+def approve_group_request(
+    request_id: int,
+    status: str,  # 'accepted' or 'rejected'
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    # Get request to find group
+    req = (
+        db.query(models.GroupRequest)
+        .filter(models.GroupRequest.id == request_id)
+        .first()
+    )
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    group = crud.get_group(db, group_id=req.group_id)
+    if not group or group.creator_id != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Only group admins can approve requests"
+        )
+
+    crud.update_group_request_status(db, request_id=request_id, status=status)
+    return {"status": "success", "message": f"Request {status}"}
+
+
+@app.get("/groups/{group_id}/members/", response_model=List[schemas.GroupMember])
 def get_group_members(group_id: int, db: Session = Depends(get_db)):
     return crud.get_group_members(db, group_id=group_id)
 
 
-@app.get("/groups/{group_id}/posts/", response_model=List[schemas.GroupPost])
+@app.get("/groups/{group_id}/posts/", response_model=List[schemas.Post])
 def list_group_posts(
     group_id: int, skip: int = 0, limit: int = 50, db: Session = Depends(get_db)
 ):
     return crud.get_group_posts(db, group_id=group_id, skip=skip, limit=limit)
 
 
-@app.post("/groups/{group_id}/posts/", response_model=schemas.GroupPost)
+@app.post("/groups/{group_id}/posts/", response_model=schemas.Post)
 def create_group_post(
     group_id: int,
     post: schemas.PostCreate,
@@ -550,8 +608,7 @@ def create_group_post(
     current_user: models.User = Depends(get_current_user),
 ):
     # Check if member
-    members = crud.get_group_members(db, group_id=group_id)
-    if current_user.id not in [m.user_id for m in members]:
+    if not crud.is_group_member(db, group_id=group_id, user_id=current_user.id):
         raise HTTPException(
             status_code=403, detail="Must be a member to post in this group"
         )

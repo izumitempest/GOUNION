@@ -77,7 +77,7 @@ class PostBase(BaseModel):
 
 
 class PostCreate(PostBase):
-    pass
+    group_id: Optional[int] = None
 
 
 class PostUpdate(PostBase):
@@ -87,6 +87,7 @@ class PostUpdate(PostBase):
 class Post(PostBase):
     id: int
     user_id: str
+    group_id: Optional[int] = None
     image: Optional[str] = None
     created_at: datetime
     user: User
@@ -213,6 +214,7 @@ class Group(GroupBase):
     id: int
     creator_id: str
     cover_image: Optional[str] = None
+    is_active: bool
     created_at: datetime
 
     class Config:
@@ -234,12 +236,19 @@ class GroupMember(GroupMemberBase):
         from_attributes = True
 
 
-class GroupPost(BaseModel):
+class GroupRequestBase(BaseModel):
+    pass
+
+
+class GroupRequestCreate(GroupRequestBase):
+    group_id: int
+
+
+class GroupRequest(GroupRequestBase):
     id: int
     group_id: int
     user_id: str
-    caption: Optional[str] = None
-    image: Optional[str] = None
+    status: str
     created_at: datetime
     user: User
 
