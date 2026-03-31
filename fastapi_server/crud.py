@@ -28,15 +28,14 @@ def get_user_by_username(db: Session, username: str):
 
 
 def create_user(db: Session, user: schemas.UserCreate, supabase_id: str):
-    # Note: supabase_id comes from the Supabase Auth response in main.py
+    # Atomic: create User + Profile in a single transaction
     db_user = models.User(id=supabase_id, username=user.username, email=user.email)
     db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    # Create profile
+    db.flush()  # Get the ID without committing
     db_profile = models.Profile(user_id=db_user.id)
     db.add(db_profile)
-    db.commit()
+    db.commit()  # Single commit for both
+    db.refresh(db_user)
     return db_user
 
 
@@ -177,6 +176,7 @@ def create_notification(
 def get_notifications(db: Session, user_id: str, skip: int = 0, limit: int = 50):
     return (
         db.query(models.Notification)
+        .options(joinedload(models.Notification.sender))
         .filter(models.Notification.user_id == user_id)
         .order_by(models.Notification.created_at.desc())
         .offset(skip)
@@ -481,27 +481,58 @@ def get_posts_by_university(db: Session, university_name: str):
 
 # Groups
 def create_group(db: Session, group: schemas.GroupCreate, creator_id: str):
+    # Atomic: create Group + admin membership in a single transaction
     db_group = models.Group(**group.model_dump(), creator_id=creator_id)
     db.add(db_group)
-    db.commit()
-    db.refresh(db_group)
+    db.flush()  # Get the ID without committing
 
     # Auto-add creator as admin
     db_member = models.GroupMember(
         group_id=db_group.id, user_id=creator_id, role="admin"
     )
     db.add(db_member)
-    db.commit()
+    db.commit()  # Single commit for both
+    db.refresh(db_group)
 
     return db_group
 
 
 def get_groups(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Group).offset(skip).limit(limit).all()
+    return (
+        db.query(models.Group)
+        .options(
+            joinedload(models.Group.creator),
+            selectinload(models.Group.members),
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_group(db: Session, group_id: int):
-    return db.query(models.Group).filter(models.Group.id == group_id).first()
+    return (
+        db.query(models.Group)
+        .options(
+            joinedload(models.Group.creator),
+            selectinload(models.Group.members),
+        )
+        .filter(models.Group.id == group_id)
+        .first()
+    )
+
+
+def get_user_posts(db: Session, user_id: str, skip: int = 0, limit: int = 50):
+    """Get posts by a specific user — eliminates frontend filtering."""
+    return (
+        db.query(models.Post)
+        .options(joinedload(models.Post.user), selectinload(models.Post.likes))
+        .filter(models.Post.user_id == user_id)
+        .order_by(models.Post.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def join_group(db: Session, group_id: int, user_id: str):

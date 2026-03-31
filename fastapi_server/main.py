@@ -20,7 +20,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import File, UploadFile
 from supabase import create_client, Client
 import asyncio
-import asyncio
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -148,6 +147,17 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 @app.get("/users/me/", response_model=schemas.User)
 async def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+
+@app.get("/users/{user_id}/posts", response_model=List[schemas.Post])
+def get_user_posts(
+    user_id: str,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    """Get posts by a specific user — efficient server-side filtering."""
+    return crud.get_user_posts(db, user_id=user_id, skip=skip, limit=limit)
 
 
 @app.post("/users/me/device", response_model=schemas.UserDevice)
@@ -589,14 +599,40 @@ def approve_group_request(
 
 
 @app.get("/groups/{group_id}/members/", response_model=List[schemas.GroupMember])
-def get_group_members(group_id: int, db: Session = Depends(get_db)):
+def get_group_members(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    group = crud.get_group(db, group_id=group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    # Enforce privacy: private/secret groups require membership
+    if group.privacy in ("private", "secret"):
+        if not crud.is_group_member(db, group_id=group_id, user_id=current_user.id):
+            raise HTTPException(
+                status_code=403, detail="You must be a member to view this group's members"
+            )
     return crud.get_group_members(db, group_id=group_id)
 
 
 @app.get("/groups/{group_id}/posts/", response_model=List[schemas.Post])
 def list_group_posts(
-    group_id: int, skip: int = 0, limit: int = 50, db: Session = Depends(get_db)
+    group_id: int,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
+    group = crud.get_group(db, group_id=group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    # Enforce privacy: private/secret groups require membership
+    if group.privacy in ("private", "secret"):
+        if not crud.is_group_member(db, group_id=group_id, user_id=current_user.id):
+            raise HTTPException(
+                status_code=403, detail="You must be a member to view this group's posts"
+            )
     return crud.get_group_posts(db, group_id=group_id, skip=skip, limit=limit)
 
 
