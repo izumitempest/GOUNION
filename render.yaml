@@ -11,9 +11,13 @@ services:
       - key: PORT
         value: 10000
       - key: DATABASE_URL
+        value: placeholder_replace_me
       - key: SUPABASE_URL
+        value: https://mswnviziobmmpsrwckjd.supabase.co
       - key: SUPABASE_SERVICE_KEY
+        value: placeholder_replace_me
       - key: ALLOWED_ORIGINS
+        value: "*"
 
   - type: web
     name: gounion-frontend
