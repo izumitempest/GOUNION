@@ -15,9 +15,9 @@ services:
       - key: SUPABASE_SERVICE_KEY
       - key: ALLOWED_ORIGINS
 
-  - type: static
+  - type: web
     name: gounion-frontend
-    plan: free
+    runtime: static
     rootDir: gounion-remake
     buildCommand: npm install && npm run build
     staticPublishPath: dist
