@@ -116,10 +116,24 @@ async def get_current_user(
 
     user = await asyncio.to_thread(crud.get_user, db, user_id=supabase_user_id)
     if user is None:
-        # If user exists in Supabase but not in our DB (edge case), create them?
-        # For now, raise error
         raise credentials_exception
     return user
+
+
+async def get_current_user_optional(
+    token: str = Depends(OAuth2PasswordBearer(tokenUrl="token", auto_error=False)),
+    db: Session = Depends(get_db),
+):
+    """Like get_current_user but returns None instead of 401 for unauthenticated requests."""
+    if not token:
+        return None
+    try:
+        user_response = await asyncio.to_thread(supabase.auth.get_user, token)
+        if not user_response.user:
+            return None
+        return await asyncio.to_thread(crud.get_user, db, user_id=user_response.user.id)
+    except Exception:
+        return None
 
 
 @app.post("/token", response_model=schemas.Token)
@@ -445,12 +459,40 @@ def list_friends(
     return crud.get_friends(db, user_id=current_user.id)
 
 
-@app.get("/profiles/{username}", response_model=schemas.Profile)
-def read_profile(username: str, db: Session = Depends(get_db)):
+@app.get("/profiles/{username}")
+def read_profile(
+    username: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user_optional),
+):
     user = crud.get_user_by_username(db, username=username)
-    if not user:
+    if not user or not user.profile:
         raise HTTPException(status_code=404, detail="User not found")
-    return user.profile
+
+    followers = crud.get_followers(db, user_id=user.id)
+    following = crud.get_following(db, user_id=user.id)
+    is_following = any(f.id == current_user.id for f in followers) if current_user else False
+
+    profile = user.profile
+    return {
+        "id": profile.id,
+        "user_id": user.id,
+        "full_name": profile.bio and user.username,  # fallback
+        "bio": profile.bio or "",
+        "profile_picture": profile.profile_picture,
+        "cover_photo": profile.cover_photo,
+        "university": profile.university or "",
+        "course": profile.course or "",
+        "graduation_year": profile.graduation_year,
+        "hometown": profile.hometown or "",
+        "relationship_status": profile.relationship_status or "",
+        "profile_type": profile.profile_type,
+        "username": user.username,
+        "email": user.email,
+        "followers_count": len(followers),
+        "following_count": len(following),
+        "is_following": is_following,
+    }
 
 
 @app.put("/profiles/me", response_model=schemas.Profile)

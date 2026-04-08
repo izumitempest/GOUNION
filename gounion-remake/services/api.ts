@@ -142,17 +142,20 @@ export const api = {
   profiles: {
     get: async (username: string) => {
       const res = await apiClient.get(`/profiles/${username}`);
+      const d = res.data;
       return {
-        id: res.data.user_id,
-        username: username,
-        fullName: username, 
-        avatarUrl: getFullUrl(res.data.profile_picture) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
-        university: res.data.university || 'University Student',
-        followers: 0,
-        following: 0,
-        bio: res.data.bio || '',
-        coverUrl: getFullUrl(res.data.cover_photo) || '',
-        isFollowing: false,
+        id: d.user_id,
+        username: d.username || username,
+        fullName: d.full_name || d.username || username,
+        avatarUrl: getFullUrl(d.profile_picture) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`,
+        university: d.university || 'University Student',
+        followers: d.followers_count ?? 0,
+        following: d.following_count ?? 0,
+        bio: d.bio || '',
+        coverUrl: getFullUrl(d.cover_photo) || '',
+        isFollowing: d.is_following ?? false,
+        course: d.course || '',
+        hometown: d.hometown || '',
       };
     },
     getPosts: async (username: string) => {
