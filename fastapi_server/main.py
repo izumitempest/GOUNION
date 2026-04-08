@@ -24,12 +24,18 @@ import asyncio
 models.Base.metadata.create_all(bind=engine)
 
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 app = FastAPI()
 
 # CORS Configuration
-# Use environment variable or default to a safer list
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "https://gounion-frontend.onrender.com").split(",")
+# allow_credentials=True is incompatible with allow_origins=["*"].
+# We handle that by always including the frontend origins explicitly.
+_raw_origins = os.getenv(
+    "ALLOWED_ORIGINS",
+    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000"
+)
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,6 +52,23 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 # Mount media directory (fallback)
 os.makedirs("media", exist_ok=True)
 app.mount("/media", StaticFiles(directory="media"), name="media")
+
+
+# ── Startup migration ──────────────────────────────────────────────────────
+# SQLAlchemy create_all only creates missing tables; it won't add new columns
+# to existing tables. We handle additive migrations here with IF NOT EXISTS.
+@app.on_event("startup")
+async def run_migrations():
+    from .database import engine as _engine
+    with _engine.connect() as conn:
+        try:
+            conn.execute(text(
+                "ALTER TABLE posts ADD COLUMN IF NOT EXISTS video VARCHAR;"
+            ))
+            conn.commit()
+            print("[migration] 'video' column ensured on posts table.")
+        except Exception as e:
+            print(f"[migration] Note: {e}")
 
 
 # Dependency

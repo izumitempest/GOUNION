@@ -17,7 +17,7 @@ services:
       - key: SUPABASE_SERVICE_KEY
         value: placeholder_replace_me
       - key: ALLOWED_ORIGINS
-        value: "*"
+        value: "https://gounion-frontend.onrender.com"
 
   - type: web
     name: gounion-frontend
