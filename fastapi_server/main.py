@@ -29,7 +29,7 @@ app = FastAPI()
 
 # CORS Configuration
 # Use environment variable or default to a safer list
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "https://gounion-frontend.onrender.com").split(",")
 
 app.add_middleware(
     CORSMiddleware,
