@@ -118,6 +118,46 @@ async def login_for_access_token(
         )
 
 
+@app.post("/auth/forgot-password")
+async def forgot_password(body: schemas.ForgotPasswordRequest):
+    """Sends a password reset email via Supabase Auth."""
+    try:
+        frontend_url = os.getenv("FRONTEND_URL", "https://gounion-frontend.onrender.com")
+        redirect_url = f"{frontend_url}/#/reset-password"
+        await asyncio.to_thread(
+            supabase.auth.reset_password_for_email,
+            body.email,
+            {"redirect_to": redirect_url},
+        )
+    except Exception as e:
+        # Always return success to prevent email enumeration attacks
+        print(f"Forgot password error (non-critical): {e}")
+    return {"message": "If that email is registered, you will receive a reset link shortly."}
+
+
+@app.post("/auth/reset-password")
+async def reset_password(body: schemas.ResetPasswordRequest):
+    """
+    Verifies the access_token from the Supabase reset email redirect and updates the user's password.
+    """
+    try:
+        user_response = await asyncio.to_thread(supabase.auth.get_user, body.token)
+        if not user_response.user:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+        await asyncio.to_thread(
+            supabase.auth.admin.update_user_by_id,
+            user_response.user.id,
+            {"password": body.new_password},
+        )
+        return {"message": "Password updated successfully. You can now log in."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Reset password error: {e}")
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+
 @app.post("/users/", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     # Check if username exists locally

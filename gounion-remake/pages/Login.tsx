@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail,
@@ -196,6 +197,17 @@ export const Login = () => {
                     />
                   </div>
                 </div>
+
+                {!isSignup && (
+                  <div className="flex justify-end">
+                    <Link
+                      to="/forgot-password"
+                      className="text-[11px] font-bold text-zinc-600 hover:text-blue-400 transition-colors uppercase tracking-widest"
+                    >
+                      Forgot Password?
+                    </Link>
+                  </div>
+                )}
               </div>
 
               <div className="pt-4">

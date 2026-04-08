@@ -93,7 +93,15 @@ export const api = {
     me: async () => {
       const res = await apiClient.get('/users/me/');
       return transformUser(res.data);
-    }
+    },
+    forgotPassword: async (email: string) => {
+      const res = await apiClient.post('/auth/forgot-password', { email });
+      return res.data;
+    },
+    resetPassword: async (token: string, new_password: string) => {
+      const res = await apiClient.post('/auth/reset-password', { token, new_password });
+      return res.data;
+    },
   },
   posts: {
     getFeed: async ({ pageParam = 0 }: { pageParam?: number } = {}) => {

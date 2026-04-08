@@ -13,6 +13,8 @@ import { TopNav } from "./components/layout/TopNav";
 import { MobileNav } from "./components/layout/MobileNav";
 import { Dashboard } from "./pages/Dashboard";
 import { Login } from "./pages/Login";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
 import { Groups } from "./pages/Groups";
 import { Messages } from "./pages/Messages";
 import { Profile } from "./pages/Profile";
@@ -66,6 +68,8 @@ const AppRoutes = () => {
         path="/login"
         element={isAuthenticated ? <Navigate to="/" /> : <Login />}
       />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route
         path="/"
         element={

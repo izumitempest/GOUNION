@@ -5,6 +5,16 @@ from typing import List, Optional
 from datetime import datetime
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+
 class ProfileBase(BaseModel):
     bio: Optional[str] = None
     university: Optional[str] = None
