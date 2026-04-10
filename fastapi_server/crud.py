@@ -10,21 +10,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def get_user(db: Session, user_id: str):
-    return (
-        db.query(models.User)
-        .options(selectinload(models.User.profile))
-        .filter(models.User.id == user_id)
-        .first()
-    )
+    # Simplify query: remove selectinload profile to avoid potential pooled connection issues
+    # We will let SQLAlchemy lazy-load it if needed, or fetch separately
+    return db.query(models.User).filter(models.User.id == user_id).first()
 
 
 def get_user_by_username(db: Session, username: str):
-    return (
-        db.query(models.User)
-        .options(selectinload(models.User.profile))
-        .filter(models.User.username == username)
-        .first()
-    )
+    return db.query(models.User).filter(models.User.username == username).first()
 
 
 def create_user(db: Session, user: schemas.UserCreate, supabase_id: str):

@@ -29,11 +29,11 @@ if _is_postgres:
             "keepalives_idle": 30,
             "keepalives_interval": 10,
             "keepalives_count": 5,
-            "prepare_threshold": None,
+            "prepare_threshold": 0, # Required for PgBouncer / Transaction Mode
         },
         pool_size=20,
         max_overflow=10,
-        pool_timeout=30,
+        pool_timeout=60,
         pool_recycle=300,
         pool_pre_ping=True,
     )
