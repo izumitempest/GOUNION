@@ -10,9 +10,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def get_user(db: Session, user_id: str):
-    # Simplify query: remove selectinload profile to avoid potential pooled connection issues
-    # We will let SQLAlchemy lazy-load it if needed, or fetch separately
-    return db.query(models.User).filter(models.User.id == user_id).first()
+    try:
+        return db.query(models.User).filter(models.User.id == user_id).first()
+    except Exception as e:
+        print(f"[db] Error in get_user: {str(e)}")
+        raise
 
 
 def get_user_by_username(db: Session, username: str):

@@ -29,7 +29,6 @@ if _is_postgres:
             "keepalives_idle": 30,
             "keepalives_interval": 10,
             "keepalives_count": 5,
-            "prepare_threshold": 0, # Required for PgBouncer / Transaction Mode
         },
         pool_size=20,
         max_overflow=10,
