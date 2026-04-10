@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Plus } from "lucide-react";
-import { User } from "../../types";
 import { useAuthStore } from "../../store";
 import { CreateStatusModal } from "./CreateStatusModal";
 import { StoryViewer } from "./StoryViewer";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../services/api";
+import { motion } from "framer-motion";
 
 export const StatusCircles = () => {
   const { user } = useAuthStore();
@@ -18,10 +18,9 @@ export const StatusCircles = () => {
   const { data: storiesFeed = [] } = useQuery({
     queryKey: ["stories-feed"],
     queryFn: api.stories.getFeed,
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: 60000,
   });
 
-  // Group stories by user
   const groupedStories = storiesFeed.reduce((acc: any, story: any) => {
     const userId = story.user.id;
     if (!acc[userId]) {
@@ -46,65 +45,50 @@ export const StatusCircles = () => {
   };
 
   return (
-    <div className="flex items-center gap-6 overflow-x-auto pb-6 mb-8 scrollbar-hide -mx-4 px-4 border-b border-white/5">
-      {/* Your Status */}
-      <div className="flex flex-col items-center gap-2 shrink-0 group">
-        <button
-          onClick={() =>
-            myStories.length > 0
-              ? openViewer({ stories: myStories, user })
-              : setIsModalOpen(true)
-          }
-          className="relative p-[2.5px] rounded-full group-hover:scale-105 transition-all duration-300"
+    <div className="flex gap-4 overflow-x-auto hide-scrollbar -mx-4 px-4 mb-4">
+      {/* Your Story */}
+      <div className="flex flex-col items-center gap-2 group cursor-pointer shrink-0">
+        <div 
+          onClick={() => myStories.length > 0 ? openViewer({ stories: myStories, user }) : setIsModalOpen(true)}
+          className={`relative w-16 h-16 rounded-full p-[2px] transition-all duration-300 group-hover:scale-105 ${myStories.length > 0 ? 'story-ring' : 'bg-white/10'}`}
         >
-          <div
-            className={`w-16 h-16 rounded-full border-2 border-[#0a0a0c] bg-white/[0.03] flex items-center justify-center overflow-hidden transition-all duration-500 ${myStories.length > 0 ? "ring-4 ring-primary ring-offset-2 ring-offset-[#0a0a0c] scale-105" : ""}`}
-          >
+          <div className="w-full h-full rounded-full border-2 border-[#030303] overflow-hidden flex items-center justify-center bg-white/5">
             {user?.avatarUrl ? (
               <img
                 src={user.avatarUrl}
-                alt="Your Avatar"
-                className={`w-full h-full object-cover transition-all duration-700 ${myStories.length > 0 ? "opacity-100 scale-100 blur-0" : "opacity-40 blur-[2px]"}`}
+                alt="You"
+                className={`w-full h-full object-cover transition-opacity ${myStories.length > 0 ? "opacity-100" : "opacity-40"}`}
+                referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="w-full h-full bg-zinc-800" />
+              <div className="w-full h-full bg-white/5" />
             )}
             {myStories.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center text-primary/80 group-hover:text-primary transition-colors">
-                <Plus size={24} />
-              </div>
+              <Plus className="absolute w-6 h-6 text-white/40 group-hover:text-white transition-colors" />
             )}
           </div>
-          {/* WhatsApp Style Pulsing Ring */}
-          {myStories.length > 0 ? (
-            <div className="absolute -inset-1 rounded-full border-[3px] border-primary animate-pulse shadow-[0_0_25px_rgba(196,255,14,0.6)]" />
-          ) : (
-            <div className="absolute inset-0 rounded-full border-[2px] border-primary/20 border-dashed animate-[spin_30s_linear_infinite]" />
-          )}
-        </button>
-        <span
-          className={`text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-300 ${myStories.length > 0 ? "text-primary" : "text-zinc-500"}`}
-        >
-          {myStories.length > 0 ? "View Story" : "My Story"}
-        </span>
+        </div>
+        <span className="text-xs text-white/50">{myStories.length > 0 ? "Your story" : "Add story"}</span>
       </div>
 
+      {/* Others */}
       {otherStories.map((group: any) => (
         <div
           key={group.user.id}
           onClick={() => openViewer(group)}
-          className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer transition-transform hover:-translate-y-1"
+          className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer"
         >
-          <div className="p-[2.5px] rounded-full ring-4 ring-primary ring-offset-2 ring-offset-[#0a0a0c] scale-105 shadow-[0_0_15px_rgba(196,255,14,0.2)]">
-            <div className="w-16 h-16 rounded-full border-2 border-[#0a0a0c] overflow-hidden">
+          <div className="w-16 h-16 rounded-full p-[2px] story-ring transition-transform duration-300 group-hover:scale-105 shadow-[0_0_20px_rgba(196,255,14,0.15)]">
+            <div className="w-full h-full rounded-full border-2 border-[#030303] overflow-hidden">
               <img
-                src={group.user.avatarUrl}
+                src={group.user.avatarUrl || `https://ui-avatars.com/api/?name=${group.user.fullName}`}
                 alt={group.user.username}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
               />
             </div>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-primary transition-colors">
+          <span className="text-xs text-white/50 truncate w-16 text-center">
             {group.user.username}
           </span>
         </div>

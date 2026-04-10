@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Send, Phone, Video, MoreVertical, Search, Sparkles, ChevronLeft, User } from "lucide-react";
+import { Send, Phone, Video, MoreVertical, Search, ChevronLeft, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../services/api";
 
@@ -92,66 +92,62 @@ export const Messages = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex rounded-[2.5rem] overflow-hidden border border-white/5 bg-[#0a0a0c]/80 backdrop-blur-3xl shadow-2xl selection:bg-primary/30">
+    <div className="h-[calc(100vh-8rem)] flex glass-panel rounded-3xl overflow-hidden mt-8">
       {/* Conversation List */}
       <div
-        className={`w-full md:w-[380px] border-r border-white/5 flex flex-col ${selectedChatId ? "hidden md:flex" : "flex"}`}
+        className={`w-full md:w-[350px] border-r border-white/10 flex flex-col ${selectedChatId ? "hidden md:flex" : "flex"}`}
       >
-        <div className="p-8 border-b border-white/5">
-          <h2 className="font-serif text-3xl font-bold text-white mb-6 tracking-tight">Messages</h2>
+        <div className="p-6 border-b border-white/10">
+          <h2 className="font-serif text-3xl text-white mb-4">Messages</h2>
           <div className="relative group">
             <Search
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-primary transition-colors"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-white transition-colors"
               size={18}
             />
             <input
               type="text"
-              placeholder="Search conversations..."
-              className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-sm text-white placeholder:text-zinc-800 focus:outline-none focus:border-white/10 transition-all font-bold"
+              placeholder="Search chats..."
+              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-sm text-white placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
             />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto scrollbar-none p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto hide-scrollbar p-2 space-y-1">
           {chats?.length === 0 && (
             <div className="py-20 text-center">
-              <Sparkles size={32} className="mx-auto text-zinc-800 mb-4 opacity-30" />
-              <p className="text-zinc-600 font-bold uppercase tracking-widest text-[10px]">No encrypted links found</p>
+              <p className="text-white/30 text-sm">No messages yet.</p>
             </div>
           )}
           {chats?.map((chat) => (
             <div
               key={chat.id}
               onClick={() => setSelectedChatId(chat.id)}
-              className={`p-4 rounded-2xl flex gap-4 cursor-pointer transition-all relative group ${
+              className={`p-4 rounded-2xl flex gap-4 cursor-pointer transition-all relative ${
                 selectedChatId === chat.id 
-                ? "bg-white/5 border border-white/10 shadow-lg" 
-                : "hover:bg-white/[0.02] border border-transparent"
+                ? "bg-white/10 shadow-lg" 
+                : "hover:bg-white/5"
               }`}
             >
               <div className="relative flex-shrink-0">
                 <img
-                  src={chat.partner.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.partner.username}`}
+                  src={chat.partner.avatarUrl || `https://ui-avatars.com/api/?name=${chat.partner.fullName}`}
                   alt={chat.partner.username}
-                  className={`w-14 h-14 rounded-2xl object-cover border-2 transition-colors ${selectedChatId === chat.id ? "border-primary" : "border-white/5"}`}
+                  className="w-12 h-12 rounded-full object-cover border border-white/10"
                 />
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-[3px] border-[#0a0a0c] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)]" />
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-black rounded-full" />
               </div>
-              <div className="flex-1 min-w-0 py-1">
+              <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-1">
-                  <h4 className="font-serif text-lg font-bold text-white truncate group-hover:text-primary transition-colors">
+                  <h4 className="font-medium text-white truncate text-sm">
                     {chat.partner.fullName}
                   </h4>
-                  <span className="text-[10px] font-black text-zinc-600 uppercase tracking-tighter">
+                  <span className="text-[10px] text-white/30 whitespace-nowrap">
                     {chat.timestamp}
                   </span>
                 </div>
-                <p className={`text-xs truncate ${chat.unreadCount > 0 ? "text-white font-bold" : "text-zinc-500 font-medium"}`}>
+                <p className={`text-xs truncate ${chat.unreadCount > 0 ? "text-white font-medium" : "text-white/40"}`}>
                   {chat.lastMessage}
                 </p>
               </div>
-              {selectedChatId === chat.id && (
-                <motion.div layoutId="activeChatBar" className="absolute left-0 top-4 bottom-4 w-1 bg-primary rounded-full shadow-[0_0_10px_rgba(196,255,14,0.5)]" />
-              )}
             </div>
           ))}
         </div>
@@ -159,102 +155,81 @@ export const Messages = () => {
 
       {/* Chat Area */}
       <div
-        className={`flex-1 flex flex-col bg-white/[0.01] ${!selectedChatId ? "hidden md:flex" : "flex"}`}
+        className={`flex-1 flex flex-col bg-white/[0.02] ${!selectedChatId ? "hidden md:flex" : "flex"}`}
       >
         {selectedChat ? (
           <>
-            <div className="h-24 px-8 border-b border-white/5 flex items-center justify-between backdrop-blur-md">
+            <div className="h-20 px-6 border-b border-white/10 flex items-center justify-between backdrop-blur-md">
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => setSelectedChatId(null)}
-                  className="md:hidden p-2 bg-white/5 rounded-xl text-zinc-400 mr-2"
+                  className="md:hidden p-2 text-white/40"
                 >
                   <ChevronLeft size={20} />
                 </button>
-                <div className="relative">
-                  <img
-                    src={selectedChat.partner.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat.partner.username}`}
-                    alt="User"
-                    className="w-12 h-12 rounded-2xl object-cover border border-white/10"
-                  />
-                </div>
+                <img
+                  src={selectedChat.partner.avatarUrl || `https://ui-avatars.com/api/?name=${selectedChat.partner.fullName}`}
+                  alt="User"
+                  className="w-10 h-10 rounded-full object-cover border border-white/10"
+                />
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-white leading-tight">
+                  <h3 className="font-medium text-white text-sm">
                     {selectedChat.partner.fullName}
                   </h3>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Encrypted Session</span>
-                  </div>
+                  <p className="text-[10px] text-emerald-400">online</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <button className="p-3.5 bg-white/5 border border-white/5 rounded-2xl text-zinc-500 hover:text-white hover:bg-white/10 transition-all">
-                  <Phone size={20} />
+              <div className="flex items-center gap-2">
+                <button className="p-2.5 text-white/40 hover:text-white transition-colors">
+                  <Phone size={18} />
                 </button>
-                <button className="p-3.5 bg-white/5 border border-white/5 rounded-2xl text-zinc-500 hover:text-white hover:bg-white/10 transition-all">
-                  <Video size={20} />
+                <button className="p-2.5 text-white/40 hover:text-white transition-colors">
+                  <Video size={18} />
                 </button>
-                <button className="p-3.5 bg-white/5 border border-white/5 rounded-2xl text-zinc-500 hover:text-white hover:bg-white/10 transition-all">
-                  <MoreVertical size={20} />
+                <button className="p-2.5 text-white/40 hover:text-white transition-colors">
+                  <MoreVertical size={18} />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 p-8 overflow-y-auto space-y-6 scrollbar-none">
+            <div className="flex-1 p-6 overflow-y-auto space-y-4 hide-scrollbar">
               <AnimatePresence mode="popLayout">
                 {messages?.map((msg: any) => (
                   <motion.div
                     key={msg.id}
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    className={`flex gap-4 ${msg.senderId === currentUserId ? "flex-row-reverse" : "flex-row"}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex ${msg.senderId === currentUserId ? "justify-end" : "justify-start"}`}
                   >
-                    {msg.senderId !== currentUserId && (
-                      <img
-                        src={selectedChat.partner.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat.partner.username}`}
-                        className="w-9 h-9 rounded-xl self-end mb-1 border border-white/10"
-                      />
-                    )}
-                    <div className="max-w-[70%] space-y-1">
-                      <div
-                        className={`p-4 rounded-[1.5rem] shadow-xl ${
-                          msg.senderId === currentUserId
-                            ? "bg-white text-black rounded-br-none"
-                            : "bg-white/5 border border-white/5 text-white rounded-bl-none backdrop-blur-sm"
-                        }`}
-                      >
-                        <p className="text-sm font-medium leading-relaxed">{msg.content}</p>
-                      </div>
-                      <span className={`text-[9px] font-black uppercase tracking-widest block px-1 ${msg.senderId === currentUserId ? "text-right text-zinc-700" : "text-left text-zinc-700"}`}>
+                    <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+                      msg.senderId === currentUserId
+                        ? "bg-white text-black"
+                        : "bg-white/10 text-white"
+                    }`}>
+                      <p className="leading-relaxed">{msg.content}</p>
+                      <span className={`text-[9px] mt-1 block opacity-40 ${msg.senderId === currentUserId ? "text-right" : "text-left"}`}>
                         {msg.timestamp}
                       </span>
                     </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
-              {messages?.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-20">
-                  <Send size={40} className="text-zinc-600" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Initialize sequence</p>
-                </div>
-              )}
             </div>
 
-            <div className="p-8 backdrop-blur-md">
-              <div className="flex items-center gap-4 bg-[#111] border border-white/5 rounded-[2rem] px-6 py-4 shadow-inner focus-within:border-white/10 transition-all group">
+            <div className="p-6 pt-0">
+              <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 py-2 focus-within:ring-1 focus-within:ring-white/20 transition-all">
                 <input
                   type="text"
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
                   onKeyDown={handleKeyPress}
-                  placeholder="Transmit message..."
-                  className="flex-1 bg-transparent border-none focus:ring-0 text-white placeholder:text-zinc-800 font-bold"
+                  placeholder="Send a message..."
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-white text-sm placeholder:text-white/20"
                 />
                 <button
                   onClick={handleSend}
                   disabled={sendMessageMutation.isPending || !messageText.trim()}
-                  className="p-3 bg-white text-black rounded-2xl hover:bg-zinc-200 transition-all disabled:opacity-20 shadow-xl active:scale-90"
+                  className="p-2 text-white hover:text-white/80 transition-all disabled:opacity-20"
                 >
                   <Send size={18} />
                 </button>
@@ -262,13 +237,13 @@ export const Messages = () => {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-20 text-center">
-            <div className="w-24 h-24 rounded-[2rem] bg-white text-black flex items-center justify-center mb-10 shadow-[0_0_50px_rgba(255,255,255,0.1)]">
-              <Send size={36} />
+          <div className="flex-1 flex flex-col items-center justify-center p-20 text-center opacity-40">
+            <div className="w-20 h-20 rounded-full border border-white/10 flex items-center justify-center mb-6">
+              <Send size={32} />
             </div>
-            <h2 className="font-serif text-4xl text-white mb-4 tracking-tight">Encrypted Terminal</h2>
-            <p className="max-w-xs text-zinc-600 font-bold uppercase tracking-widest text-[10px] leading-relaxed">
-              select a verified network node to establish a secure communication channel
+            <h2 className="font-serif text-2xl text-white mb-2">Direct Messages</h2>
+            <p className="text-sm max-w-xs">
+              Select a friend from the list to start a conversation.
             </p>
           </div>
         )}

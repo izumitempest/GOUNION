@@ -35,16 +35,14 @@ const queryClient = new QueryClient({
 // Layout Component to wrap authenticated routes
 const AppLayout = ({ children }: { children?: React.ReactNode }) => {
   return (
-    <div className="min-h-screen bg-[#0a0a0c] text-zinc-100 font-sans selection:bg-primary/30 flex flex-col">
-      <TopNav />
-      <div className="flex-1 flex max-w-[1600px] mx-auto w-full overflow-hidden">
-        <Sidebar className="hidden md:flex w-64 lg:w-72" />
-        <main className="flex-1 min-w-0 p-4 md:p-6 lg:px-8 pt-8 overflow-y-auto custom-scrollbar">
-          <div className="max-w-4xl mx-auto pb-20">{children}</div>
-        </main>
-        <RightSidebar className="hidden xl:flex w-80" />
-      </div>
-      <MobileNav />
+    <div className="flex h-screen bg-[#030303] text-white overflow-hidden selection:bg-white/20">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto hide-scrollbar">
+        <div className="px-4">
+          {children}
+        </div>
+      </main>
+      <RightSidebar />
     </div>
   );
 };

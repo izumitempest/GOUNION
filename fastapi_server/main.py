@@ -110,8 +110,14 @@ async def startup_event():
                 conn.execute(text(
                     "ALTER TABLE posts ADD COLUMN IF NOT EXISTS video VARCHAR;"
                 ))
+                conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'user';"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"
+                ))
                 conn.commit()
-                print("[migration] 'video' column ensured on posts table.")
+                print("[migration] Database schema updated successfully.")
             except Exception as e:
                 print(f"[migration] Note: {e}")
     

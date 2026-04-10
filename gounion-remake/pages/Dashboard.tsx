@@ -6,6 +6,7 @@ import { StatusCircles } from "../components/feed/StatusCircles";
 import { Skeleton } from "../components/ui/Skeleton";
 import { api } from "../services/api";
 import { Post } from "../types";
+import { motion } from "framer-motion";
 
 export const Dashboard = () => {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
@@ -16,7 +17,7 @@ export const Dashboard = () => {
       getNextPageParam: (lastPage, allPages) => {
         return lastPage.length > 0 ? allPages.length : undefined;
       },
-      refetchInterval: 5000, // Poll every 5 seconds for "real-time" feel
+      refetchInterval: 5000,
     });
 
   const { data: suggestions } = useQuery({
@@ -28,7 +29,6 @@ export const Dashboard = () => {
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // ... same observer logic ...
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
@@ -50,61 +50,55 @@ export const Dashboard = () => {
     };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Flatten the pages array into a single list of posts
   const posts = data?.pages.flat() || [];
 
   return (
-    <div className="w-full pb-20 md:pb-0">
-      <StatusCircles users={suggestions || []} />
-
-      <div className="flex items-center justify-between mb-8 py-4 px-2 border-b border-white/5">
-        <h1 className="text-3xl font-black text-white tracking-tighter">
-          Home
-        </h1>
-        <select className="bg-[#141417] border border-white/10 rounded-xl text-sm text-zinc-400 py-1.5 px-4 focus:outline-none focus:border-primary transition-all">
-          <option>All Posts</option>
-          <option>Following</option>
-          <option>Research</option>
-        </select>
+    <div className="max-w-2xl mx-auto w-full pb-24 pt-8">
+      {/* Stories Section */}
+      <div className="mb-8">
+        <h2 className="font-serif text-3xl mb-4 text-white">Campus stories</h2>
+        <StatusCircles users={suggestions || []} />
       </div>
 
-      <CreatePost />
+      <div className="space-y-6">
+        <CreatePost />
 
-      {status === "pending" ? (
-        <div className="space-y-4">
-          <Skeleton className="h-48 w-full rounded-2xl" />
-          <Skeleton className="h-48 w-full rounded-2xl" />
-          <Skeleton className="h-48 w-full rounded-2xl" />
-        </div>
-      ) : status === "error" ? (
-        <div className="text-center text-red-400 py-10 bg-white/5 rounded-2xl">
-          <p>Unable to load posts. Please try again later.</p>
-        </div>
-      ) : (
-        <div className="space-y-0">
-          {posts.map((post: Post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
-
-          {/* Infinite Scroll Sentinel */}
-          <div
-            ref={loadMoreRef}
-            className="h-24 flex flex-col items-center justify-center p-4"
-          >
-            {isFetchingNextPage ? (
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-2 h-2 bg-violet-500 rounded-full animate-bounce"></div>
-              </div>
-            ) : hasNextPage ? (
-              <div className="h-4 w-full" />
-            ) : (
-              <p className="text-zinc-500 text-sm">You've reached the end!</p>
-            )}
+        {status === "pending" ? (
+          <div className="space-y-6">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
-        </div>
-      )}
+        ) : status === "error" ? (
+          <div className="glass-panel p-12 text-center rounded-2xl">
+            <p className="text-white/60">Unable to load posts. Please try again later.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {posts.map((post: Post, index: number) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+
+            {/* Infinite Scroll Sentinel */}
+            <div
+              ref={loadMoreRef}
+              className="py-12 flex flex-col items-center justify-center"
+            >
+              {isFetchingNextPage ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-white/20 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                  <div className="w-2 h-2 bg-white/20 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                  <div className="w-2 h-2 bg-white/20 rounded-full animate-bounce"></div>
+                </div>
+              ) : hasNextPage ? (
+                <div className="h-4 w-full" />
+              ) : (
+                <p className="text-white/30 text-sm font-medium">You've reached the end of the feed!</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

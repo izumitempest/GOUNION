@@ -1,6 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Image, Send, Video, X } from "lucide-react";
-import { GlassCard } from "../ui/GlassCard";
+import { Image as ImageIcon, Send, Video, Paperclip, X } from "lucide-react";
 import { useAuthStore } from "../../store";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../services/api";
@@ -53,97 +52,90 @@ export const CreatePost = () => {
   };
 
   return (
-    <GlassCard className="mb-6">
-      <form onSubmit={handleSubmit}>
-        <div className="flex gap-4">
-          <img
-            src={user?.avatarUrl}
-            alt={user?.username}
-            className="w-10 h-10 rounded-full object-cover border border-white/10"
+    <div className="glass-panel rounded-2xl p-4 mb-6">
+      <form onSubmit={handleSubmit} className="flex gap-4">
+        <img
+          src={user?.avatarUrl || `https://ui-avatars.com/api/?name=${user?.fullName}&background=random`}
+          alt="Profile"
+          className="w-10 h-10 rounded-full object-cover border border-white/10"
+          referrerPolicy="no-referrer"
+        />
+        <div className="flex-1">
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="What's happening on campus?"
+            className="w-full bg-transparent border-none text-white placeholder:text-white/40 focus:outline-none focus:ring-0 text-lg mt-1 resize-none h-12"
           />
-          <div className="flex-1">
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="What's happening?"
-              className="w-full bg-transparent border-none focus:ring-0 text-zinc-100 placeholder:text-zinc-600 resize-none h-20 text-lg"
-            />
 
-            {previewUrl && (
-              <div className="relative mt-4 rounded-xl overflow-hidden border border-white/10 group">
-                {selectedFile?.type.startsWith("image/") ? (
-                  <img
-                    src={previewUrl}
-                    alt="Preview"
-                    className="w-full h-auto max-h-96 object-cover"
-                  />
-                ) : (
-                  <video
-                    src={previewUrl}
-                    className="w-full h-auto max-h-96 object-cover"
-                    controls
-                  />
-                )}
-                <button
-                  onClick={handleRemoveFile}
-                  className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition-colors backdrop-blur-md"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between mt-2 pt-4 border-t border-white/5">
-              <div className="flex gap-1">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept="image/*,video/*"
+          {previewUrl && (
+            <div className="relative mt-4 rounded-xl overflow-hidden border border-white/10 group">
+              {selectedFile?.type.startsWith("image/") ? (
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="w-full h-auto max-h-96 object-cover"
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-zinc-400 hover:text-violet-400 transition-colors p-2 rounded-lg hover:bg-white/5 flex items-center gap-2"
-                >
-                  <Image size={20} />
-                  <span className="text-xs font-medium hidden sm:inline">
-                    Photo
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-zinc-400 hover:text-rose-400 transition-colors p-2 rounded-lg hover:bg-white/5 flex items-center gap-2"
-                >
-                  <Video size={20} />
-                  <span className="text-xs font-medium hidden sm:inline">
-                    Video
-                  </span>
-                </button>
-              </div>
-
+              ) : (
+                <video
+                  src={previewUrl}
+                  className="w-full h-auto max-h-96 object-cover"
+                  controls
+                />
+              )}
               <button
-                type="submit"
-                disabled={
-                  (!content.trim() && !selectedFile) || mutation.isPending
-                }
-                className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-2 rounded-xl font-medium flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)]"
+                type="button"
+                onClick={handleRemoveFile}
+                className="absolute top-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-full transition-colors backdrop-blur-md"
               >
-                {mutation.isPending ? (
-                  "Posting..."
-                ) : (
-                  <>
-                    <span>Post</span>
-                    <Send size={16} />
-                  </>
-                )}
+                <X size={16} />
               </button>
             </div>
+          )}
+
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/10">
+            <div className="flex gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept="image/*,video/*"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                title="Photo"
+              >
+                <ImageIcon className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                title="Video"
+              >
+                <Video className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                className="p-2 text-white/40 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                title="Attachment"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+            </div>
+            <button
+              type="submit"
+              disabled={(!content.trim() && !selectedFile) || mutation.isPending}
+              className="px-6 py-2 bg-white text-black rounded-full font-medium hover:bg-white/90 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {mutation.isPending ? "Posting..." : "Post"}
+            </button>
           </div>
         </div>
       </form>
-    </GlassCard>
+    </div>
   );
 };
