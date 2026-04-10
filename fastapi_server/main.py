@@ -21,12 +21,50 @@ from fastapi import File, UploadFile
 from supabase import create_client, Client
 import asyncio
 
-models.Base.metadata.create_all(bind=engine)
-
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from fastapi.responses import JSONResponse
+import traceback
+import logging
 
 app = FastAPI()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Global Exception Handler to catch 500s and ensure CORS headers
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_traceback = traceback.format_exc()
+    logger.error(f"GLOBAL ERROR: {str(exc)}\n{error_traceback}")
+    
+    response = JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error",
+            "error_type": type(exc).__name__,
+            "message": str(exc) if os.getenv("DEBUG") == "true" else "An unexpected error occurred."
+        }
+    )
+    
+    # Manually add CORS headers to ensure the browser doesn't block the error message
+    origin = request.headers.get("origin")
+    if origin in ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    
+    return response
+
+# Pydantic Validation Error Handler
+from pydantic import ValidationError
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(request: Request, exc: ValidationError):
+    logger.error(f"VALIDATION ERROR: {exc.json()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()}
+    )
 
 # CORS Configuration
 # allow_credentials=True is incompatible with allow_origins=["*"].
@@ -118,19 +156,37 @@ async def get_current_user(
     )
     try:
         # Verify token with Supabase
-        # run_in_executor to avoid blocking async loop since supabase-py is sync
+        logger.info("[auth] Verifying token with Supabase...")
         user_response = await asyncio.to_thread(supabase.auth.get_user, token)
 
         if not user_response.user:
+            logger.warning("[auth] No user found in Supabase session.")
             raise credentials_exception
+            
         supabase_user_id = user_response.user.id
-    except Exception:
+        logger.info(f"[auth] Supabase UID verified: {supabase_user_id}")
+    except Exception as e:
+        logger.error(f"[auth] Supabase verification failed: {str(e)}")
         raise credentials_exception
 
-    user = await asyncio.to_thread(crud.get_user, db, user_id=supabase_user_id)
-    if user is None:
-        raise credentials_exception
-    return user
+    try:
+        logger.info(f"[auth] Fetching local user data for {supabase_user_id}...")
+        user = await asyncio.to_thread(crud.get_user, db, user_id=supabase_user_id)
+        
+        if user is None:
+            logger.warning(f"[auth] User {supabase_user_id} not found in local database.")
+            raise credentials_exception
+            
+        logger.info(f"[auth] User {user.username} loaded successfully.")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[auth] Local database lookup failed: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database lookup failed during authentication"
+        )
 
 
 async def get_current_user_optional(
