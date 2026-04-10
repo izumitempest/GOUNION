@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../services/api";
 import { Skeleton } from "../ui/Skeleton";
 import { Send } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuthStore } from "../../store";
 
 interface CommentSectionProps {
@@ -130,19 +131,21 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         ) : (
           comments?.map((comment: any) => (
             <div key={comment.id} className="flex gap-3 group">
-              <img
-                src={
-                  comment.user.profile?.profile_picture ||
-                  `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`
-                }
-                alt={comment.user.username}
-                className="w-8 h-8 rounded-full object-cover border border-white/5 flex-shrink-0"
-              />
+              <Link to={`/profile/${comment.user.username}`} className="flex-shrink-0">
+                <img
+                  src={
+                    comment.user.profile?.profile_picture ||
+                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.user.username}`
+                  }
+                  alt={comment.user.username}
+                  className="w-8 h-8 rounded-full object-cover border border-white/5"
+                />
+              </Link>
               <div className="flex-1 bg-white/5 rounded-2xl rounded-tl-sm p-3 hover:bg-white/10 transition-colors">
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs font-bold text-zinc-100 italic">
+                  <Link to={`/profile/${comment.user.username}`} className="text-xs font-bold text-zinc-100 hover:text-white transition-colors">
                     @{comment.user.username}
-                  </span>
+                  </Link>
                   <span className="text-[10px] text-zinc-500">
                     {new Date(comment.created_at).toLocaleDateString()}
                   </span>

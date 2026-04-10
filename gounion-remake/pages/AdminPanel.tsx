@@ -222,13 +222,13 @@ export const AdminPanel = () => {
                     <span className="text-xs text-zinc-500 font-bold">Reported By @{r.user?.username}</span>
                   </div>
                   <p className="text-sm text-white font-medium mb-2 leading-relaxed"><span className="text-zinc-500 mr-2 font-bold uppercase tracking-widest text-[10px]">Reason:</span> {r.reason}</p>
-                  {r.post && (
-                    <div className="text-xs text-zinc-400 border-l-[3px] border-accent/50 pl-4 py-2 bg-white/5 rounded-r-lg">
-                      <span className="text-[10px] font-black uppercase text-accent mb-1 block">Context Flagged:</span>
-                      Target Content ID: {r.post.id} <br/>
-                      Preview: "{r.post.content?.substring(0, 80)}..."
-                    </div>
-                  )}
+                  <div className="text-xs text-zinc-400 border-l-[3px] border-accent/50 pl-4 py-3 bg-white/5 rounded-r-lg mt-3">
+                    <span className="text-[10px] font-black uppercase text-accent mb-2 block">Context Flagged:</span>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Target Content ID: {r.post?.id || r.postId || r.post_id || 'Unknown'}</span> <br/>
+                    <span className="text-zinc-300 block mt-1">
+                      {r.post ? `"${r.post.content?.substring(0, 100)}..."` : "(Context missing or post already deleted)"}
+                    </span>
+                  </div>
                 </div>
                 
                 {r.status === 'pending' && (

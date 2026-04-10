@@ -26,4 +26,4 @@ dist-ssr
 venv/
 .env
 ./*.zip
-make_admin.py
+fastapi_server/make_admin.py

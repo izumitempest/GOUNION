@@ -32,7 +32,7 @@ export const Sidebar = () => {
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="fixed left-0 top-0 h-screen w-64 border-r border-white/5 bg-black/40 backdrop-blur-3xl flex flex-col z-40"
+      className="fixed left-0 top-0 h-screen w-64 border-r border-white/5 bg-black/40 backdrop-blur-3xl hidden md:flex flex-col z-40"
     >
       <div className="p-6">
         <Link to="/" className="flex items-center gap-3 group">
@@ -132,9 +132,9 @@ export const Sidebar = () => {
           </div>
           <div className="h-px w-full bg-white/10" />
           <div className="flex items-center justify-between">
-            <button className="text-white/50 hover:text-white transition-colors p-1">
+            <Link to="/settings" className="text-white/50 hover:text-white transition-colors p-1">
               <Settings className="w-4 h-4" />
-            </button>
+            </Link>
             <button
               onClick={logout}
               className="text-white/50 hover:text-red-400 transition-colors p-1"

@@ -14,6 +14,7 @@ import {
   X,
   Sparkles,
   Info,
+  User
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../services/api";
@@ -107,12 +108,12 @@ export const GroupDetails = () => {
   if (!group)
     return (
       <div className="flex flex-col items-center justify-center py-32">
-        <h2 className="font-serif text-3xl text-white mb-6">Collective footprint lost</h2>
+        <h2 className="font-serif text-3xl text-white mb-6">Group not found</h2>
         <button
           onClick={() => navigate("/groups")}
           className="px-8 py-4 bg-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all border border-white/5"
         >
-          Return to directory
+          Return to groups
         </button>
       </div>
     );
@@ -126,7 +127,7 @@ export const GroupDetails = () => {
         <div className="p-2.5 rounded-xl bg-white/5 group-hover:bg-white group-hover:text-black transition-all border border-white/5 shadow-lg">
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
         </div>
-        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Collective directory</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.2em]">All Groups</span>
       </button>
 
       <div className="relative rounded-[3rem] overflow-hidden mb-12 border border-white/5 shadow-2xl group min-h-[350px] flex items-end">
@@ -142,7 +143,7 @@ export const GroupDetails = () => {
             <div className="flex items-center gap-3 mb-4">
               <div className="px-4 py-1.5 bg-white/10 backdrop-blur-2xl border border-white/10 rounded-full flex items-center gap-2">
                 {group.privacy === "public" ? <Globe size={13} className="text-primary" /> : <Lock size={13} className="text-accent" />}
-                <span className="text-[10px] font-black text-white uppercase tracking-widest">{group.privacy} Space</span>
+                <span className="text-[10px] font-black text-white uppercase tracking-widest">{group.privacy} Group</span>
               </div>
               {isAdmin && (
                 <div className="px-4 py-1.5 bg-primary/20 backdrop-blur-2xl border border-primary/20 rounded-full flex items-center gap-2">
@@ -185,7 +186,7 @@ export const GroupDetails = () => {
                 onClick={() => joinMutation.mutate()}
                 className="px-12 py-5 bg-white text-black rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all shadow-2xl active:scale-[0.98]"
               >
-                Sync with Space
+                Join Group
               </button>
             )}
           </div>
@@ -235,7 +236,7 @@ export const GroupDetails = () => {
                         <textarea
                           value={caption}
                           onChange={(e) => setCaption(e.target.value)}
-                          placeholder={`Broadcast to ${group.name}...`}
+                          placeholder={`Write something to ${group.name}...`}
                           className="w-full bg-transparent border-none focus:ring-0 text-white placeholder:text-zinc-800 resize-none pt-2 h-24 text-lg font-medium"
                         />
                       </div>
@@ -254,7 +255,7 @@ export const GroupDetails = () => {
                           <div className="p-2.5 rounded-xl bg-white/5 group-hover:bg-white group-hover:text-black transition-all">
                             <ImageIcon size={18} />
                           </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest">Identify Media</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest">Add Photo</span>
                           <input type="file" className="hidden" onChange={(e) => setImage(e.target.files?.[0] || null)} />
                         </label>
                         <button
@@ -263,7 +264,7 @@ export const GroupDetails = () => {
                           className="bg-white text-black disabled:opacity-30 px-10 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-xl active:scale-[0.98]"
                         >
                           <Send size={16} className="mb-0.5" />
-                          {createPostMutation.isPending ? "Syncing..." : "Transmit"}
+                          {createPostMutation.isPending ? "Posting..." : "Post"}
                         </button>
                       </div>
                     </div>
@@ -277,7 +278,7 @@ export const GroupDetails = () => {
                     <div className="py-32 text-center bg-white/[0.02] rounded-[3rem] border border-dashed border-white/5">
                       <Sparkles size={32} className="mx-auto text-zinc-800 mb-4 opacity-30" />
                       <p className="text-zinc-600 font-bold uppercase tracking-widest text-[10px]">
-                        Ecosystem is currently silent
+                        No posts yet
                       </p>
                     </div>
                   ) : (
@@ -303,7 +304,7 @@ export const GroupDetails = () => {
                 </div>
                 {requests?.length === 0 ? (
                   <div className="p-20 text-center glass-panel rounded-[2.5rem] border-dashed border-white/5">
-                    <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">Queue is cleared</p>
+                    <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">No requests pending</p>
                   </div>
                 ) : (
                   requests?.map((req: any) => (
@@ -361,7 +362,7 @@ export const GroupDetails = () => {
                   </div>
                   <div className="p-6 bg-white/[0.03] rounded-3xl border border-white/5 space-y-2">
                     <p className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Status</p>
-                    <p className="text-primary font-bold uppercase text-sm tracking-widest">Verified Space</p>
+                    <p className="text-primary font-bold uppercase text-sm tracking-widest">Verified Group</p>
                   </div>
                 </div>
               </motion.div>
@@ -399,6 +400,6 @@ export const GroupDetails = () => {
           </div>
         </div>
       </div>
-    </div>
+    </div> 
   );
 };

@@ -223,7 +223,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>env
+      </div>
 
       <AnimatePresence>
         {isReporting && (
@@ -235,11 +235,24 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
               className="glass-panel p-6 rounded-2xl w-full max-w-sm"
             >
               <h3 className="text-xl font-serif text-white mb-4">Report Post</h3>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {["Spam", "Hate Speech", "Harassment", "False Info"].map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => setReportReason(preset)}
+                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                      reportReason === preset ? 'bg-primary/20 text-primary border-primary/30' : 'bg-white/5 text-zinc-400 border-white/5 border-transparent hover:bg-white/10'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
               <textarea
                 value={reportReason}
                 onChange={(e) => setReportReason(e.target.value)}
-                placeholder="Why are you reporting this post?"
-                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white placeholder:text-white/40 focus:outline-none focus:border-white/20 mb-4 min-h-[100px] resize-none"
+                placeholder="Or provide a specific reason..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white placeholder:text-white/40 focus:outline-none focus:border-white/20 mb-4 min-h-[80px] resize-none"
               />
               <div className="flex gap-3 justify-end">
                 <button

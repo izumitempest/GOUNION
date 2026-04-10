@@ -183,6 +183,13 @@ async def get_current_user(
             logger.warning(f"[auth] User {supabase_user_id} not found in local database.")
             raise credentials_exception
             
+        if getattr(user, 'is_active', True) is False:
+            logger.warning(f"[auth] Suspended user {user.username} blocked.")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your account has been suspended."
+            )
+            
         logger.info(f"[auth] User {user.username} loaded successfully.")
         return user
     except HTTPException:

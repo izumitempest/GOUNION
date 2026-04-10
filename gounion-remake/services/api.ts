@@ -8,7 +8,6 @@ const apiClient = axios.create({
   baseURL: API_URL,
 });
 
-// Add interceptor to include token
 apiClient.interceptors.request.use((config) => {
   const token = sessionStorage.getItem('access_token');
   if (token) {
@@ -16,6 +15,18 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Add interceptor to handle unauthorized/suspended responses
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 403 && error.response?.data?.detail === "Your account has been suspended.") {
+      sessionStorage.clear();
+      window.location.href = '/#/auth';
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Helper to build full URLs for media
 const getFullUrl = (url: string | null) => {
