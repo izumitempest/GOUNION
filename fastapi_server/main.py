@@ -71,7 +71,7 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
 # We handle that by always including the frontend origins explicitly.
 _raw_origins = os.getenv(
     "ALLOWED_ORIGINS",
-    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://localhost,https://localhost,capacitor://localhost,ionic://localhost"
+    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000",
 )
 # Parse origins and ensure no trailing slashes, as origins must be exact
 ALLOWED_ORIGINS = []
@@ -79,6 +79,18 @@ for o in _raw_origins.split(","):
     clean_o = o.strip().rstrip("/")
     if clean_o:
         ALLOWED_ORIGINS.append(clean_o)
+
+# Always include mobile webview origins needed by Android APK builds,
+# even when ALLOWED_ORIGINS is explicitly set in environment variables.
+REQUIRED_MOBILE_ORIGINS = [
+    "http://localhost",
+    "https://localhost",
+    "capacitor://localhost",
+    "ionic://localhost",
+]
+for origin in REQUIRED_MOBILE_ORIGINS:
+    if origin not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(origin)
 
 app.add_middleware(
     CORSMiddleware,
