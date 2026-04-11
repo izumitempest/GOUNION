@@ -60,6 +60,13 @@ export const Profile = () => {
     },
   });
 
+  const chatMutation = useMutation({
+    mutationFn: (userId: string) => api.chats.createConversation([userId]),
+    onSuccess: () => {
+      window.location.href = '/#/messages';
+    },
+  });
+
   const followMutation = useMutation({
     mutationFn: () => {
       if (!user) return Promise.reject();
@@ -175,7 +182,11 @@ export const Profile = () => {
             </button>
           ) : (
             <>
-              <button className="p-2.5 bg-black/50 backdrop-blur-md border border-white/10 text-white rounded-xl hover:bg-black/70 transition-colors">
+              <button 
+                onClick={() => user?.id && chatMutation.mutate(user.id)}
+                disabled={chatMutation.isPending}
+                className="p-2.5 bg-black/50 backdrop-blur-md border border-white/10 text-white rounded-xl hover:bg-black/70 transition-colors disabled:opacity-50"
+              >
                 <MessageSquare size={20} />
               </button>
               <button

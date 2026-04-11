@@ -243,7 +243,7 @@ export const api = {
         id: g.id.toString(),
         name: g.name,
         description: g.description,
-        memberCount: 0, // Backend could provide this or we calculate
+        memberCount: g.member_count || 0,
         imageUrl: getFullUrl(g.cover_image) || `https://api.dicebear.com/7.x/identicon/svg?seed=${g.name}`,
         isJoined: false,
         privacy: g.privacy
@@ -256,7 +256,7 @@ export const api = {
         id: g.id.toString(),
         name: g.name,
         description: g.description,
-        memberCount: 0,
+        memberCount: g.member_count || 0,
         imageUrl: getFullUrl(g.cover_image) || `https://api.dicebear.com/7.x/identicon/svg?seed=${g.name}`,
         isJoined: false,
         privacy: g.privacy,

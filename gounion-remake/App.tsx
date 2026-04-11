@@ -21,6 +21,7 @@ import { Profile } from "./pages/Profile";
 import { Alumni } from "./pages/Alumni";
 import { GroupDetails } from "./pages/GroupDetails";
 import { AdminPanel } from "./pages/AdminPanel";
+import { Settings } from "./pages/Settings";
 import { useAuthStore } from "./store";
 
 const queryClient = new QueryClient({
@@ -124,6 +125,22 @@ const AppRoutes = () => {
         element={
           <PrivateRoute>
             <AdminPanel />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/discover"
+        element={
+          <PrivateRoute>
+            <Alumni />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            <Settings />
           </PrivateRoute>
         }
       />

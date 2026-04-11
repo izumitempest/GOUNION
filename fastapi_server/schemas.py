@@ -240,6 +240,7 @@ class GroupBase(BaseModel):
     name: str
     description: Optional[str] = None
     privacy: str = "public"
+    member_count: Optional[int] = 0
 
 
 class GroupCreate(GroupBase):

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Search, UserPlus, Check, MapPin, GraduationCap } from "lucide-react";
+import { Search, MessageSquare, Check, MapPin, GraduationCap } from "lucide-react";
 import { api } from "../services/api";
 import { Skeleton } from "../components/ui/Skeleton";
 import { motion } from "framer-motion";
@@ -14,10 +14,10 @@ export const Alumni = () => {
     enabled: true, 
   });
 
-  const sendRequestMutation = useMutation({
-    mutationFn: (userId: string) => api.friends.sendRequest(userId),
+  const chatMutation = useMutation({
+    mutationFn: (userId: string) => api.chats.createConversation([userId]),
     onSuccess: () => {
-      // Logic for request sent
+      window.location.href = '/#/messages';
     },
   });
 
@@ -82,26 +82,32 @@ export const Alumni = () => {
                 )}
               </div>
 
-              <div className="space-y-1 mb-8">
-                <h3 className="font-serif text-2xl text-white group-hover:underline cursor-pointer">
+              <div className="space-y-1 mb-6">
+                <a href={`/#/profile/${user.username}`} className="font-serif text-2xl text-white hover:underline cursor-pointer">
                   {user.fullName || `@${user.username}`}
-                </h3>
+                </a>
                 <div className="flex items-center gap-2 text-white/50 text-sm">
                   <MapPin size={14} />
-                  <span>{user.profile?.university || "Student"}</span>
+                  <span>{user.university || "Student"}</span>
                 </div>
               </div>
 
-              <button
-                onClick={() => sendRequestMutation.mutate(user.id)}
-                disabled={sendRequestMutation.isPending}
-                className="w-full py-3 bg-white text-black rounded-xl font-medium text-sm transition-all hover:bg-white/90 active:scale-95 disabled:opacity-50"
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <UserPlus size={16} />
-                  {sendRequestMutation.isPending ? "Adding..." : "Add friend"}
-                </span>
-              </button>
+              <div className="flex gap-2">
+                <a
+                  href={`/#/profile/${user.username}`}
+                  className="flex-1 py-3 bg-white/5 text-white border border-white/10 rounded-xl font-medium text-sm transition-all hover:bg-white/10 active:scale-95 text-center flex items-center justify-center"
+                >
+                  View Profile
+                </a>
+                <button
+                  onClick={() => chatMutation.mutate(user.id)}
+                  disabled={chatMutation.isPending}
+                  className="flex-1 py-3 bg-white text-black rounded-xl font-medium text-sm transition-all hover:bg-white/90 active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <MessageSquare size={16} />
+                  Chat
+                </button>
+              </div>
             </motion.div>
           ))}
           {users?.length === 0 && (

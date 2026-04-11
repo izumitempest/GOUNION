@@ -200,6 +200,10 @@ class Group(Base):
         "GroupRequest", back_populates="group", cascade="all, delete-orphan"
     )
 
+    @property
+    def member_count(self):
+        return len(self.members) if self.members else 0
+
 
 class GroupMember(Base):
     __tablename__ = "group_members"

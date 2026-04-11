@@ -48,18 +48,48 @@ export const AdminPanel = () => {
   const roleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: string }) =>
       api.admin.updateRole(userId, role),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
+    onMutate: async ({ userId, role }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+      const previousUsers = queryClient.getQueryData(['admin-users']);
+      queryClient.setQueryData(['admin-users'], (old: any) => {
+        if (!old) return old;
+        return old.map((u: any) => u.id === userId ? { ...u, role } : u);
+      });
+      return { previousUsers };
+    },
+    onError: (err, variables, context) => queryClient.setQueryData(['admin-users'], context?.previousUsers),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: (userId: string) => api.admin.toggleActive(userId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
+    onMutate: async (userId) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-users'] });
+      const previousUsers = queryClient.getQueryData(['admin-users']);
+      queryClient.setQueryData(['admin-users'], (old: any) => {
+        if (!old) return old;
+        return old.map((u: any) => u.id === userId ? { ...u, isActive: !u.isActive } : u);
+      });
+      return { previousUsers };
+    },
+    onError: (err, variables, context) => queryClient.setQueryData(['admin-users'], context?.previousUsers),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
   });
 
   const resolveReportMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) =>
       api.reports.resolve(id, status),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-reports'] }),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ['admin-reports'] });
+      const previousReports = queryClient.getQueryData(['admin-reports']);
+      queryClient.setQueryData(['admin-reports'], (old: any) => {
+        if (!old) return old;
+        return old.map((r: any) => r.id === id ? { ...r, status } : r);
+      });
+      return { previousReports };
+    },
+    onError: (err, variables, context) => queryClient.setQueryData(['admin-reports'], context?.previousReports),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['admin-reports'] }),
   });
 
   return (
