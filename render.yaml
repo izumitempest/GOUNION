@@ -17,7 +17,7 @@ services:
       - key: SUPABASE_SERVICE_KEY
         value: SET_IN_RENDER_DASHBOARD
       - key: ALLOWED_ORIGINS
-        value: "https://gounion-frontend.onrender.com"
+        value: "https://gounion-frontend.onrender.com,https://localhost,capacitor://localhost,http://localhost,https://gounion-download.vercel.app"
 
   - type: web
     name: gounion-frontend
