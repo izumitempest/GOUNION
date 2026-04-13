@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorAccent">#FFCC00</color>
-    <color name="colorPrimary">#003366</color>
-    <color name="colorPrimaryDark">#002244</color>
+    <color name="colorAccent">#FFFFFF</color>
+    <color name="colorPrimary">#030303</color>
+    <color name="colorPrimaryDark">#000000</color>
     <color name="ic_launcher_background">#003366</color>
-    <color name="splash_background">#003366</color>
+    <color name="splash_background">#030303</color>
     <string name="app_name">GoUnion</string>
     <string name="custom_url_scheme">com.gounion.app</string>
     <string name="package_name">com.gounion.app</string>
