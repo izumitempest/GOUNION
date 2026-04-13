@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_raw_url = os.getenv("DATABASE_URL", "")
+_raw_url = os.getenv("DATABASE_URL", "").strip()
 
 # Supabase (and some Heroku-style providers) give postgres:// but SQLAlchemy
 # requires postgresql://
