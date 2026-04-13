@@ -17,7 +17,6 @@ export const Dashboard = () => {
       getNextPageParam: (lastPage, allPages) => {
         return lastPage.length > 0 ? allPages.length : undefined;
       },
-      refetchInterval: 5000,
     });
 
   const { data: suggestions } = useQuery({

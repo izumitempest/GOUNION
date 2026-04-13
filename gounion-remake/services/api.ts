@@ -254,7 +254,7 @@ export const api = {
         id: g.id.toString(),
         name: g.name,
         description: g.description,
-        memberCount: 0, // Backend could provide this or we calculate
+        memberCount: g.member_count || 0,
         imageUrl: getFullUrl(g.cover_image) || `https://api.dicebear.com/7.x/identicon/svg?seed=${g.name}`,
         isJoined: false,
         privacy: g.privacy
@@ -267,7 +267,7 @@ export const api = {
         id: g.id.toString(),
         name: g.name,
         description: g.description,
-        memberCount: 0,
+        memberCount: g.member_count || 0,
         imageUrl: getFullUrl(g.cover_image) || `https://api.dicebear.com/7.x/identicon/svg?seed=${g.name}`,
         isJoined: false,
         privacy: g.privacy,
@@ -323,6 +323,25 @@ export const api = {
         image: imageUrl
       });
       return transformPost(res.data);
+    },
+    updateGroup: async (id: string, file?: File | null) => {
+      let cover_url = undefined;
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const uploadRes = await apiClient.post('/upload/', formData);
+        cover_url = uploadRes.data.url;
+      }
+      const res = await apiClient.put(`/groups/${id}${cover_url ? `?cover_image=${encodeURIComponent(cover_url)}` : ''}`);
+      return res.data;
+    },
+    updateMemberRole: async (groupId: string, userId: string, role: string) => {
+      const res = await apiClient.put(`/groups/${groupId}/members/${userId}/role?role=${role}`);
+      return res.data;
+    },
+    kickMember: async (groupId: string, userId: string) => {
+      const res = await apiClient.delete(`/groups/${groupId}/members/${userId}`);
+      return res.data;
     }
   },
   search: {
@@ -358,13 +377,31 @@ export const api = {
       return res.data.map((m: any) => ({
         id: m.id.toString(),
         content: m.content,
+        imageUrl: getFullUrl(m.image_url),
+        videoUrl: getFullUrl(m.video_url),
         senderId: m.sender_id,
         timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isRead: m.is_read
       }));
     },
-    sendMessage: async (conversationId: string, content: string) => {
-      const res = await apiClient.post(`/conversations/${conversationId}/messages/`, { content });
+    sendMessage: async (conversationId: string, content?: string, file?: File | null) => {
+      let imageUrl = null;
+      let videoUrl = null;
+
+      if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const uploadRes = await apiClient.post('/upload/', formData);
+        const url = uploadRes.data.url;
+        if (file.type.startsWith('video/')) videoUrl = url;
+        else imageUrl = url;
+      }
+
+      const res = await apiClient.post(`/conversations/${conversationId}/messages/`, { 
+        content,
+        image_url: imageUrl,
+        video_url: videoUrl 
+      });
       return res.data;
     },
     createConversation: async (participantIds: string[], name?: string) => {
@@ -375,21 +412,15 @@ export const api = {
   notifications: {
     getAll: async () => {
       const res = await apiClient.get('/notifications/');
-      return res.data.map((n: any) => ({
-        id: n.id.toString(),
-        type: n.type,
-        actor: transformUser(n.sender),
-        message: `${n.sender.username} ${n.type}ed your post`,
-        timestamp: new Date(n.created_at).toLocaleDateString(),
-        read: n.is_read
-      }));
+      return res.data;
     },
     getUnreadCount: async () => {
       const res = await apiClient.get('/notifications/unread-count');
-      return res.data.count;
+      return res.data;
     },
-    markAsRead: async () => {
-      await apiClient.post('/notifications/read');
+    markRead: async () => {
+      const res = await apiClient.post('/notifications/read');
+      return res.data;
     }
   },
   reports: {
@@ -459,5 +490,5 @@ export const api = {
       const res = await apiClient.post(`/stories/${id}/like`);
       return res.data;
     }
-  }
+  },
 };

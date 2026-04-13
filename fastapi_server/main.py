@@ -1,6 +1,6 @@
 # main.py
 
-from fastapi import Depends, FastAPI, HTTPException, status, Request
+from fastapi import Depends, FastAPI, HTTPException, status, Request, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from dotenv import load_dotenv
 import os
@@ -71,7 +71,7 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
 # We handle that by always including the frontend origins explicitly.
 _raw_origins = os.getenv(
     "ALLOWED_ORIGINS",
-    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000",
+    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,https://gounion-download.vercel.app"
 )
 # Parse origins and ensure no trailing slashes, as origins must be exact
 ALLOWED_ORIGINS = []
@@ -112,6 +112,42 @@ os.makedirs("media", exist_ok=True)
 app.mount("/media", StaticFiles(directory="media"), name="media")
 
 
+# WebSocket Connection Manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[str, WebSocket] = {}
+
+    async def connect(self, user_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections[user_id] = websocket
+
+    def disconnect(self, user_id: str):
+        if user_id in self.active_connections:
+            del self.active_connections[user_id]
+
+    async def send_personal_message(self, message: dict, user_id: str):
+        if user_id in self.active_connections:
+            await self.active_connections[user_id].send_json(message)
+
+    async def broadcast_to_conversation(self, message: dict, participant_ids: List[str]):
+        for pid in participant_ids:
+            if pid in self.active_connections:
+                await self.active_connections[pid].send_json(message)
+
+manager = ConnectionManager()
+
+
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    await manager.connect(user_id, websocket)
+    try:
+        while True:
+            # Keep the connection alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(user_id)
+
+
 # ── Startup migration ──────────────────────────────────────────────────────
 # SQLAlchemy create_all only creates missing tables; it won't add new columns
 # to existing tables. We handle additive migrations here with IF NOT EXISTS.
@@ -130,6 +166,18 @@ async def startup_event():
                 ))
                 conn.execute(text(
                     "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_url VARCHAR;"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE messages ADD COLUMN IF NOT EXISTS video_url VARCHAR;"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE group_members ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'member';"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE groups ADD COLUMN IF NOT EXISTS cover_image VARCHAR;"
                 ))
                 conn.commit()
                 print("[migration] Database schema updated successfully.")
@@ -857,6 +905,49 @@ def get_group(group_id: int, db: Session = Depends(get_db)):
     return group
 
 
+@app.put("/groups/{group_id}", response_model=schemas.Group)
+def update_group(
+    group_id: int,
+    cover_image: str = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    group = crud.get_group(db, group_id=group_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if group.creator_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only creator can update group")
+    return crud.update_group_settings(db, group_id=group_id, cover_image=cover_image)
+
+
+@app.put("/groups/{group_id}/members/{user_id}/role", response_model=schemas.GroupMember)
+def update_group_member_role(
+    group_id: int,
+    user_id: str,
+    role: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    group = crud.get_group(db, group_id=group_id)
+    if not group or group.creator_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only admin can change roles")
+    return crud.update_group_member_role(db, group_id=group_id, user_id=user_id, role=role)
+
+
+@app.delete("/groups/{group_id}/members/{user_id}")
+def remove_group_member(
+    group_id: int,
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    group = crud.get_group(db, group_id=group_id)
+    if not group or group.creator_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only admin can kick members")
+    crud.remove_group_member(db, group_id=group_id, user_id=user_id)
+    return {"status": "success"}
+
+
 @app.post("/groups/{group_id}/join", response_model=dict)
 def join_group(
     group_id: int,
@@ -1043,7 +1134,7 @@ def list_messages(
 
 
 @app.post("/conversations/{conversation_id}/messages/", response_model=schemas.Message)
-def create_message(
+async def create_message(
     conversation_id: int,
     message: schemas.MessageCreate,
     db: Session = Depends(get_db),
@@ -1065,12 +1156,31 @@ def create_message(
 
     db_message = crud.create_message(db, message=message, sender_id=current_user.id)
     # Refresh with joinedload for response model
-    return (
+    full_message = (
         db.query(models.Message)
         .options(joinedload(models.Message.sender))
         .filter(models.Message.id == db_message.id)
         .first()
     )
+    
+    # Broadcast to participants
+    if full_message:
+        msg_payload = {
+            "type": "new_message",
+            "message": {
+                "id": full_message.id,
+                "conversation_id": full_message.conversation_id,
+                "content": full_message.content,
+                "image_url": full_message.image_url,
+                "video_url": full_message.video_url,
+                "sender_id": full_message.sender_id,
+                "created_at": full_message.created_at.isoformat(),
+            }
+        }
+        # Fire and forget broadcasting
+        asyncio.create_task(manager.broadcast_to_conversation(msg_payload, [p.id for p in conv.participants]))
+
+    return full_message
 
 
 @app.post("/conversations/", response_model=schemas.Conversation)

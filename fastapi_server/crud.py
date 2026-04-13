@@ -570,6 +570,37 @@ def is_group_member(db: Session, group_id: int, user_id: str):
     )
 
 
+def remove_group_member(db: Session, group_id: int, user_id: str):
+    member = db.query(models.GroupMember).filter(
+        models.GroupMember.group_id == group_id, models.GroupMember.user_id == user_id
+    ).first()
+    if member:
+        db.delete(member)
+        db.commit()
+    return True
+
+
+def update_group_member_role(db: Session, group_id: int, user_id: str, role: str):
+    member = db.query(models.GroupMember).filter(
+        models.GroupMember.group_id == group_id, models.GroupMember.user_id == user_id
+    ).first()
+    if member:
+        member.role = role
+        db.commit()
+        db.refresh(member)
+    return member
+
+
+def update_group_settings(db: Session, group_id: int, cover_image: str = None):
+    group = db.query(models.Group).filter(models.Group.id == group_id).first()
+    if group:
+        if cover_image:
+            group.cover_image = cover_image
+        db.commit()
+        db.refresh(group)
+    return group
+
+
 def create_group_post(
     db: Session, group_post: schemas.PostCreate, group_id: int, user_id: str
 ):
@@ -678,8 +709,7 @@ def create_message(db: Session, message: schemas.MessageCreate, sender_id: str):
         f"DEBUG: creating message in conv {message.conversation_id} from user {sender_id}"
     )
     db_message = models.Message(
-        content=message.content,
-        conversation_id=message.conversation_id,
+        **message.model_dump(),
         sender_id=sender_id,
     )
     db.add(db_message)

@@ -23,8 +23,12 @@ import { Alumni } from "./pages/Alumni";
 import { GroupDetails } from "./pages/GroupDetails";
 import { AdminPanel } from "./pages/AdminPanel";
 import { DownloadPage } from "./pages/DownloadPage";
+import { Settings } from "./pages/Settings";
+import { Notifications } from "./pages/Notifications";
 import { useAuthStore } from "./store";
 import { API_URL, api } from "./services/api";
+import { usePushNotifications } from "./hooks/usePushNotifications";
+import { ToastProvider } from "./components/ui/Toast";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -111,6 +115,39 @@ const AppBootState = ({
   );
 };
 
+const useWebSocket = () => {
+  const { user, isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.id) return;
+
+    const currentApiUrl = API_URL || 'http://127.0.0.1:8001';
+    const wsUrl = currentApiUrl.replace('http', 'ws') + `/ws/${user.id}`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_message') {
+          const msg = data.message;
+          // Invalidate affected queries for instant refresh
+          queryClient.invalidateQueries({ queryKey: ["messages", msg.conversation_id.toString()] });
+          queryClient.invalidateQueries({ queryKey: ["chats"] });
+          queryClient.invalidateQueries({ queryKey: ["notifications-unread"] });
+        }
+      } catch (e) {
+        console.error("WS Message error", e);
+      }
+    };
+
+    socket.onclose = () => {
+      console.log("WS Disconnected. Reconnecting in 5s...");
+    };
+
+    return () => socket.close();
+  }, [isAuthenticated, user?.id]);
+};
+
 const AppRoutes = () => {
   const { isAuthenticated } = useAuthStore();
   const location = useLocation();
@@ -147,6 +184,8 @@ const AppRoutes = () => {
   useEffect(() => {
     void checkBackendHealth();
   }, []);
+
+  useWebSocket();
 
   const PUBLIC_ROUTES = [
     "/login",
@@ -238,17 +277,44 @@ const AppRoutes = () => {
           </PrivateRoute>
         }
       />
-      <Route path="*" element={<Navigate to={defaultPublicRoute} />} />
+      <Route
+        path="/discover"
+        element={
+          <PrivateRoute>
+            <Alumni />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute>
+            <Settings />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/notifications"
+        element={
+          <PrivateRoute>
+            <Notifications />
+          </PrivateRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
 };
 
 const App = () => {
+  usePushNotifications();
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </ToastProvider>
     </QueryClientProvider>
   );
 };

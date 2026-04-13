@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Send, Phone, Video, MoreVertical, Search, ChevronLeft, User } from "lucide-react";
+import { Send, Phone, Video, MoreVertical, Search, ChevronLeft, User, Paperclip, Image as ImageIcon, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../services/api";
 import { authStorage } from "../utils/persistentStorage";
@@ -19,6 +19,23 @@ export const Messages = () => {
 
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAttachment(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setAttachmentPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearAttachment = () => {
+    setAttachment(null);
+    setAttachmentPreview(null);
+  };
 
   const createChatMutation = useMutation({
     mutationFn: (participantId: string) => api.chats.createConversation([participantId]),
@@ -49,10 +66,11 @@ export const Messages = () => {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: ({ chatId, content }: { chatId: string; content: string }) =>
-      api.chats.sendMessage(chatId, content),
-    onMutate: async ({ content }) => {
+    mutationFn: ({ chatId, content, file }: { chatId: string; content?: string; file?: File | null }) =>
+      api.chats.sendMessage(chatId, content, file),
+    onMutate: async ({ content, file }) => {
       setMessageText("");
+      clearAttachment();
       await queryClient.cancelQueries({ queryKey: ["messages", selectedChatId] });
       await queryClient.cancelQueries({ queryKey: ["chats"] });
 
@@ -62,6 +80,8 @@ export const Messages = () => {
       const newMessage = {
         id: `temp-${Date.now()}`,
         content,
+        imageUrl: file && !file.type.startsWith('video/') ? URL.createObjectURL(file) : null,
+        videoUrl: file && file.type.startsWith('video/') ? URL.createObjectURL(file) : null,
         senderId: currentUserId,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isRead: false
@@ -78,7 +98,7 @@ export const Messages = () => {
 
         const updatedChat = {
           ...old[chatIndex],
-          lastMessage: content,
+          lastMessage: content || (file ? (file.type.startsWith('video/') ? '🎥 Video' : '📷 Image') : ''),
           timestamp: newMessage.timestamp
         };
 
@@ -105,10 +125,11 @@ export const Messages = () => {
   const selectedChat = chats?.find((c) => c.id === selectedChatId);
 
   const handleSend = () => {
-    if (!messageText.trim() || !selectedChatId) return;
+    if ((!messageText.trim() && !attachment) || !selectedChatId) return;
     sendMessageMutation.mutate({
       chatId: selectedChatId,
       content: messageText,
+      file: attachment
     });
   };
 
@@ -229,13 +250,23 @@ export const Messages = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className={`flex ${msg.senderId === currentUserId ? "justify-end" : "justify-start"}`}
                   >
-                    <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+                    <div className={`max-w-[75%] px-1 py-1 rounded-2xl text-sm ${
                       msg.senderId === currentUserId
                         ? "bg-white text-black"
                         : "bg-white/10 text-white"
                     }`}>
-                      <p className="leading-relaxed">{msg.content}</p>
-                      <span className={`text-[9px] mt-1 block opacity-40 ${msg.senderId === currentUserId ? "text-right" : "text-left"}`}>
+                      {msg.imageUrl && (
+                        <img src={msg.imageUrl} className="max-w-full rounded-xl mb-1 object-cover" alt="" />
+                      )}
+                      {msg.videoUrl && (
+                        <video src={msg.videoUrl} controls className="max-w-full rounded-xl mb-1" />
+                      )}
+                      {msg.content && (
+                        <div className="px-3 py-1.5">
+                          <p className="leading-relaxed">{msg.content}</p>
+                        </div>
+                      )}
+                      <span className={`text-[9px] px-3 pb-1 block opacity-40 ${msg.senderId === currentUserId ? "text-right" : "text-left"}`}>
                         {msg.timestamp}
                       </span>
                     </div>
@@ -245,7 +276,26 @@ export const Messages = () => {
             </div>
 
             <div className="p-6 pt-0">
+              {attachmentPreview && (
+                <div className="mb-4 relative inline-block">
+                  {attachment?.type.startsWith('video/') ? (
+                    <video src={attachmentPreview} className="max-h-32 rounded-xl border border-white/10" />
+                  ) : (
+                    <img src={attachmentPreview} className="max-h-32 rounded-xl border border-white/10" />
+                  )}
+                  <button 
+                    onClick={clearAttachment}
+                    className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-lg"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl px-4 py-2 focus-within:ring-1 focus-within:ring-white/20 transition-all">
+                <label className="p-2 text-white/40 hover:text-white transition-all cursor-pointer">
+                  <ImageIcon size={18} />
+                  <input type="file" className="hidden" onChange={handleFileSelect} accept="image/*,video/*" />
+                </label>
                 <input
                   type="text"
                   value={messageText}
@@ -256,7 +306,7 @@ export const Messages = () => {
                 />
                 <button
                   onClick={handleSend}
-                  disabled={sendMessageMutation.isPending || !messageText.trim()}
+                  disabled={sendMessageMutation.isPending || (!messageText.trim() && !attachment)}
                   className="p-2 text-white hover:text-white/80 transition-all disabled:opacity-20"
                 >
                   <Send size={18} />

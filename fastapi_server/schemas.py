@@ -240,6 +240,7 @@ class GroupBase(BaseModel):
     name: str
     description: Optional[str] = None
     privacy: str = "public"
+    member_count: Optional[int] = 0
 
 
 class GroupCreate(GroupBase):
@@ -293,7 +294,9 @@ class GroupRequest(GroupRequestBase):
 
 
 class MessageBase(BaseModel):
-    content: str
+    content: Optional[str] = None
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
 
 
 class MessageCreate(MessageBase):

@@ -11,7 +11,10 @@ import {
   LogOut,
   Search,
   ShieldCheck,
+  Bell,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../../services/api";
 import { useAuthStore } from "../../store";
 import { motion } from "framer-motion";
 
@@ -20,12 +23,19 @@ const NAV_ITEMS = [
   { icon: Compass, label: "Discover", path: "/discover" },
   { icon: Users, label: "Groups", path: "/groups" },
   { icon: MessageSquare, label: "Messages", path: "/messages" },
-  { icon: GraduationCap, label: "Alumni", path: "/alumni" },
+  { icon: Bell, label: "Notifications", path: "/notifications" },
 ];
 
 export const Sidebar = () => {
   const { user, logout } = useAuthStore();
   const location = useLocation();
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications-unread'],
+    queryFn: api.notifications.getUnreadCount,
+    refetchInterval: 30000,
+  });
+  const unreadCount = unreadData?.count || 0;
 
   return (
     <motion.aside
@@ -75,6 +85,11 @@ export const Sidebar = () => {
                 }`}
               />
               {item.label}
+              {item.path === '/notifications' && unreadCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </NavLink>
           );
         })}

@@ -60,6 +60,13 @@ export const Profile = () => {
     },
   });
 
+  const chatMutation = useMutation({
+    mutationFn: (userId: string) => api.chats.createConversation([userId]),
+    onSuccess: () => {
+      window.location.href = '/#/messages';
+    },
+  });
+
   const followMutation = useMutation({
     mutationFn: () => {
       if (!user) return Promise.reject();

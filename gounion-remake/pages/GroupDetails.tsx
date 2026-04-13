@@ -14,7 +14,13 @@ import {
   X,
   Sparkles,
   Info,
-  User
+  User,
+  MoreVertical,
+  UserCheck,
+  UserPlus as UserPlusIcon,
+  UserX,
+  Trash2,
+  Edit2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../services/api";
@@ -95,6 +101,29 @@ export const GroupDetails = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["group-requests", id] });
       queryClient.invalidateQueries({ queryKey: ["group-members", id] });
+    },
+  });
+
+  const updateGroupMutation = useMutation({
+    mutationFn: (file: File) => api.groups.updateGroup(id!, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group", id] });
+    },
+  });
+
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      api.groups.updateMemberRole(id!, userId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group-members", id] });
+    },
+  });
+
+  const kickMemberMutation = useMutation({
+    mutationFn: (userId: string) => api.groups.kickMember(id!, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["group-members", id] });
+      queryClient.invalidateQueries({ queryKey: ["group", id] });
     },
   });
 
@@ -289,56 +318,155 @@ export const GroupDetails = () => {
               </motion.div>
             )}
 
+            {activeTab === "members" && (
+              <motion.div
+                key="members"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-6"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-serif text-3xl text-white">Registry</h3>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    {members?.length || 0} Total Members
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {members?.map((m: any) => (
+                    <div key={m.id} className="glass-panel !p-4 border-white/5 flex items-center gap-4 rounded-2xl">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 border border-white/10">
+                        <img 
+                          src={m.user?.profile?.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.user?.username}`} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-bold truncate leading-none mb-1">{m.user?.profile?.full_name || m.user?.username}</p>
+                        <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">{m.role}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
             {activeTab === "admin" && isAdmin && (
               <motion.div
                 key="admin"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="space-y-8"
+                className="space-y-12"
               >
-                <div className="flex items-center justify-between mb-8">
-                  <h3 className="font-serif text-3xl text-white">Pending Governance</h3>
-                  <div className="px-4 py-1 bg-accent/20 rounded-full text-accent text-[10px] font-black uppercase tracking-widest border border-accent/20">
-                    {requests?.length || 0} Requests
-                  </div>
-                </div>
-                {requests?.length === 0 ? (
-                  <div className="p-20 text-center glass-panel rounded-[2.5rem] border-dashed border-white/5">
-                    <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">No requests pending</p>
-                  </div>
-                ) : (
-                  requests?.map((req: any) => (
-                    <div key={req.id} className="glass-panel !p-6 border-white/10 flex items-center justify-between rounded-[2rem]">
-                      <div className="flex items-center gap-5">
-                        <div className="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 bg-[#0a0a0c]">
-                          <img
-                            src={req.user.profile?.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.user.username}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div>
-                          <p className="text-white font-serif text-xl mb-1">{req.user.username}</p>
-                          <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest">Verification request</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => approveMutation.mutate({ requestId: req.id, status: "accepted" })}
-                          className="p-4 bg-emerald-500/10 text-emerald-500 rounded-2xl hover:bg-emerald-500 hover:text-black transition-all border border-emerald-500/20"
-                        >
-                          <Check size={20} />
-                        </button>
-                        <button
-                          onClick={() => approveMutation.mutate({ requestId: req.id, status: "rejected" })}
-                          className="p-4 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
-                        >
-                          <X size={20} />
-                        </button>
-                      </div>
+                {/* Image Management */}
+                <section>
+                  <h3 className="font-serif text-3xl text-white mb-6">Visual Identity</h3>
+                  <div className="glass-panel p-8 rounded-[2.5rem] border-white/10 flex flex-col md:flex-row items-center gap-8">
+                    <img src={group.imageUrl} className="w-48 h-32 object-cover rounded-2xl border border-white/10 shadow-xl" />
+                    <div className="flex-1 text-center md:text-left">
+                      <h4 className="text-white font-bold text-lg mb-2">Update Cover Photo</h4>
+                      <p className="text-zinc-500 text-xs mb-6 font-medium">Resolution should be min 1200x400 for best quality.</p>
+                      <label className="inline-block px-10 py-4 bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest cursor-pointer hover:bg-zinc-200 transition-all">
+                        Select File
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) updateGroupMutation.mutate(file);
+                          }} 
+                        />
+                      </label>
                     </div>
-                  ))
-                )}
+                  </div>
+                </section>
+
+                {/* Join Requests */}
+                <section>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-serif text-3xl text-white">Pending Membership</h3>
+                    <div className="px-4 py-1 bg-accent/20 rounded-full text-accent text-[10px] font-black uppercase tracking-widest border border-accent/20">
+                      {requests?.length || 0} Requests
+                    </div>
+                  </div>
+                  {requests?.length === 0 ? (
+                    <div className="p-14 text-center glass-panel rounded-[2.5rem] border-dashed border-white/5 opacity-50">
+                      <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">No requests pending</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {requests?.map((req: any) => (
+                        <div key={req.id} className="glass-panel !p-6 border-white/10 flex items-center justify-between rounded-[2rem]">
+                          <div className="flex items-center gap-5">
+                            <div className="w-16 h-16 rounded-2xl overflow-hidden border border-white/10 bg-[#0a0a0c]">
+                              <img
+                                src={req.user.profile?.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${req.user.username}`}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-white font-serif text-xl mb-1">{req.user.username}</p>
+                              <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest">Verification request</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => approveMutation.mutate({ requestId: req.id, status: "accepted" })}
+                              className="p-4 bg-emerald-500/10 text-emerald-500 rounded-2xl hover:bg-emerald-500 hover:text-black transition-all border border-emerald-500/20"
+                            >
+                              <Check size={20} />
+                            </button>
+                            <button
+                              onClick={() => approveMutation.mutate({ requestId: req.id, status: "rejected" })}
+                              className="p-4 bg-red-500/10 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
+                            >
+                              <X size={20} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Member Management */}
+                <section>
+                  <h3 className="font-serif text-3xl text-white mb-6">Staff Control</h3>
+                  <div className="space-y-4">
+                    {members?.map((m: any) => (
+                      <div key={m.id} className="glass-panel !p-4 border-white/10 flex items-center gap-4 rounded-2xl">
+                        <img 
+                          src={m.user?.profile?.profile_picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.user?.username}`} 
+                          className="w-12 h-12 rounded-xl object-cover"
+                        />
+                        <div className="flex-1">
+                          <p className="text-white font-bold">{m.user?.profile?.full_name || m.user?.username}</p>
+                          <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">{m.role}</p>
+                        </div>
+                        {m.user_id !== currentUserId && (
+                          <div className="flex items-center gap-2">
+                            <select 
+                              className="bg-black/40 border border-white/5 rounded-xl text-[9px] font-black uppercase tracking-widest p-2 text-white outline-none focus:border-primary transition-all"
+                              value={m.role}
+                              onChange={(e) => updateRoleMutation.mutate({ userId: m.user_id, role: e.target.value })}
+                            >
+                              <option value="member">Member</option>
+                              <option value="moderator">Moderator</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                            <button 
+                              onClick={() => kickMemberMutation.mutate(m.user_id)}
+                              className="p-3 bg-red-500/5 hover:bg-red-500 text-red-500 hover:text-white rounded-xl transition-all border border-red-500/10"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
               </motion.div>
             )}
 

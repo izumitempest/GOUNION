@@ -16,12 +16,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CommentSection } from "./CommentSection";
 import { useAuthStore } from "../../store";
 import { MediaPlayer } from "../ui/MediaPlayer";
+import { useToast } from "../ui/Toast";
 
 interface PostCardProps {
   post: Post;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({ post }) => {
+  const { toast } = useToast();
   const [showComments, setShowComments] = React.useState(false);
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuthStore();
@@ -69,7 +71,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
     mutationFn: (reason: string) =>
       api.reports.create({ reason, postId: parseInt(post.id) }),
     onSuccess: () => {
-      alert("Reported. We'll look into it.");
+      toast("Report submitted for review", "success");
       setShowMenu(false);
     },
   });
@@ -77,6 +79,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const deleteMutation = useMutation({
     mutationFn: () => api.posts.delete(post.id),
     onSuccess: () => {
+      toast("Post deleted successfully", "success");
       queryClient.invalidateQueries({ queryKey: ["feed"] });
     },
   });

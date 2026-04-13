@@ -11,6 +11,10 @@ Frontend/
 .env
 media/
 node_modules/
+tools/
+apk_temp/
+gounion-remake/android/*/build/
+gounion-remake/dist/
 
 v2_temp/
 *.log

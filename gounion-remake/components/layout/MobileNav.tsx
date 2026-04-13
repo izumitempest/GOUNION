@@ -11,14 +11,25 @@ import {
   ShieldCheck, 
   Settings, 
   LogOut,
-  X
+  X,
+  Bell
 } from "lucide-react";
 import { useAuthStore } from "../../store";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../../services/api";
 import { motion, AnimatePresence } from "framer-motion";
 
 export const MobileNav = () => {
   const { user, logout } = useAuthStore();
   const [isOthersOpen, setIsOthersOpen] = useState(false);
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications-unread'],
+    queryFn: api.notifications.getUnreadCount,
+    refetchInterval: 30000,
+    enabled: !!user,
+  });
+  const unreadCount = unreadData?.count || 0;
 
   const NAV_ITEMS = [
     { icon: Home, label: "Feed", path: "/" },
@@ -28,6 +39,7 @@ export const MobileNav = () => {
   ];
 
   const OTHER_ITEMS = [
+    { icon: Bell, label: "Alerts", path: "/notifications", badge: unreadCount },
     { icon: Compass, label: "Discover", path: "/discover" },
     { icon: GraduationCap, label: "Alumni", path: "/alumni" },
     ...(user?.role === "admin" || user?.role === "moderator" 
@@ -73,7 +85,12 @@ export const MobileNav = () => {
           onClick={() => setIsOthersOpen(true)}
           className={`relative flex flex-col items-center justify-center h-full flex-1 transition-all duration-300 ${isOthersOpen ? "text-violet-400" : "text-zinc-500"}`}
         >
-          <MoreHorizontal size={20} />
+          <div className="relative">
+            <MoreHorizontal size={20} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1.5 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse" />
+            )}
+          </div>
           <span className="text-[9px] mt-1 font-bold tracking-tight uppercase">Others</span>
         </button>
       </div>
@@ -114,8 +131,13 @@ export const MobileNav = () => {
                     onClick={() => setIsOthersOpen(false)}
                     className="flex flex-col items-center justify-center p-6 bg-white/5 border border-white/5 rounded-3xl hover:bg-white/10 hover:border-white/10 transition-all group"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-violet-600/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-12 h-12 rounded-2xl bg-violet-600/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform relative">
                       <item.icon className="w-6 h-6 text-violet-400" />
+                      {item.badge && item.badge > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-lg">
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
                     </div>
                     <span className="text-sm font-medium text-white">{item.label}</span>
                   </Link>
