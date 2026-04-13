@@ -24,7 +24,8 @@ export const MobileNav = () => {
   ];
 
   return (
-    <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-sm h-16 bg-[#09090b]/60 backdrop-blur-2xl border border-white/10 z-50 flex items-center justify-around px-2 rounded-2xl shadow-2xl">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 pb-8 bg-gradient-to-t from-black/80 to-transparent pointer-events-none z-[100]">
+      <div className="pointer-events-auto w-full max-w-sm mx-auto h-16 bg-[#09090b] border border-white/10 flex items-center justify-around px-2 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] backdrop-blur-xl">
       {NAV_ITEMS.map((item) => (
         <NavLink
           key={item.path}
@@ -58,6 +59,7 @@ export const MobileNav = () => {
           )}
         </NavLink>
       ))}
+      </div>
     </div>
   );
 };

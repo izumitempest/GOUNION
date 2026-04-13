@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink, Link, useLocation } from "react-router-dom";
+import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Compass,
@@ -29,6 +29,7 @@ const NAV_ITEMS = [
 export const Sidebar = () => {
   const { user, logout } = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread'],
@@ -59,7 +60,8 @@ export const Sidebar = () => {
           <input
             type="text"
             placeholder="Search GoUnion..."
-            className="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
+            onFocus={() => navigate("/search")} 
+            className="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all cursor-pointer"
           />
         </div>
       </div>

@@ -10,9 +10,9 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => {
-  // Initialize from sessionStorage
-  const token = sessionStorage.getItem('access_token');
-  const userStr = sessionStorage.getItem('user_data');
+  // Initialize from localStorage
+  const token = localStorage.getItem('access_token');
+  const userStr = localStorage.getItem('user_data');
   let user = null;
   try {
     user = userStr ? JSON.parse(userStr) : null;
@@ -25,13 +25,13 @@ export const useAuthStore = create<AuthState>((set) => {
     token: token,
     isAuthenticated: !!token,
     login: (user, token) => {
-      sessionStorage.setItem('access_token', token);
-      sessionStorage.setItem('user_data', JSON.stringify(user));
+      localStorage.setItem('access_token', token);
+      localStorage.setItem('user_data', JSON.stringify(user));
       set({ user, token, isAuthenticated: true });
     },
     logout: () => {
-      sessionStorage.removeItem('access_token');
-      sessionStorage.removeItem('user_data');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_data');
       set({ user: null, token: null, isAuthenticated: false });
     },
   };

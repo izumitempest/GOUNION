@@ -23,6 +23,7 @@ import { GroupDetails } from "./pages/GroupDetails";
 import { AdminPanel } from "./pages/AdminPanel";
 import { Settings } from "./pages/Settings";
 import { Notifications } from "./pages/Notifications";
+import { SearchPage } from "./pages/Search";
 import { useAuthStore } from "./store";
 import { useEffect } from "react";
 import { ToastProvider } from "./components/ui/Toast";
@@ -64,7 +65,7 @@ const useWebSocket = () => {
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
+    const API_URL = import.meta.env.VITE_API_URL || 'https://gounion-backend.onrender.com';
     const wsUrl = API_URL.replace('http', 'ws') + `/ws/${user.id}`;
     const socket = new WebSocket(wsUrl);
 
@@ -188,6 +189,14 @@ const AppRoutes = () => {
         element={
           <PrivateRoute>
             <Notifications />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/search"
+        element={
+          <PrivateRoute>
+            <SearchPage />
           </PrivateRoute>
         }
       />

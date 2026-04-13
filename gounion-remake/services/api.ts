@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { useAuthStore } from '../store';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
+const API_URL = import.meta.env.VITE_API_URL || 'https://gounion-backend.onrender.com';
 
 // Create axios instance
 const apiClient = axios.create({
@@ -10,7 +10,7 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('access_token');
+  const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -337,6 +337,14 @@ export const api = {
     users: async (query: string) => {
       const res = await apiClient.get(`/search/users?q=${encodeURIComponent(query)}`);
       return res.data.map(transformUser);
+    },
+    posts: async (query: string) => {
+      const res = await apiClient.get(`/search/posts?q=${encodeURIComponent(query)}`);
+      return res.data.map(transformPost);
+    },
+    groups: async (query: string) => {
+      const res = await apiClient.get(`/search/groups?q=${encodeURIComponent(query)}`);
+      return res.data; // groups already return correct format mostly
     }
   },
   friends: {

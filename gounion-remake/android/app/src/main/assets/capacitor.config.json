@@ -1,8 +1,5 @@
 {
 	"appId": "com.gounion.app",
 	"appName": "GoUnion",
-	"webDir": "dist",
-	"server": {
-		"androidScheme": "https"
-	}
+	"webDir": "dist"
 }

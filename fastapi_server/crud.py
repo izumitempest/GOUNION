@@ -452,6 +452,13 @@ def search_posts(db: Session, query: str):
     return db.query(models.Post).filter(models.Post.caption.ilike(f"%{query}%")).all()
 
 
+def search_groups(db: Session, query: str):
+    return db.query(models.Group).filter(
+        (models.Group.name.ilike(f"%{query}%")) | 
+        (models.Group.description.ilike(f"%{query}%"))
+    ).all()
+
+
 def get_users_by_university(db: Session, university_name: str):
     return (
         db.query(models.User)

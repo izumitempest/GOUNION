@@ -1,5 +1,5 @@
-import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { Search, MessageSquare, Check, MapPin, GraduationCap } from "lucide-react";
 import { api } from "../services/api";
 import { Skeleton } from "../components/ui/Skeleton";
@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 
 export const Alumni = () => {
   const [query, setQuery] = useState("");
+  const navigate = useNavigate();
 
   const { data: users, isLoading } = useQuery({
     queryKey: ["users", query],
@@ -17,7 +18,7 @@ export const Alumni = () => {
   const chatMutation = useMutation({
     mutationFn: (userId: string) => api.chats.createConversation([userId]),
     onSuccess: () => {
-      window.location.href = '/#/messages';
+      navigate('/messages');
     },
   });
 
