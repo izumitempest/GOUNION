@@ -71,7 +71,7 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
 # We handle that by always including the frontend origins explicitly.
 _raw_origins = os.getenv(
     "ALLOWED_ORIGINS",
-    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,https://gounion-download.vercel.app,http://192.168.1.170:3000,http://192.168.1.170:5173"
+    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,https://gounion-download.vercel.app,https://localhost,capacitor://localhost,http://localhost"
 )
 # Parse origins and ensure no trailing slashes, as origins must be exact
 ALLOWED_ORIGINS = []
