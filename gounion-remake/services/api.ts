@@ -92,6 +92,23 @@ export const api = {
       return res.data;
     },
   },
+  mobile: {
+    getVersionInfo: async (currentVersion?: string) => {
+      const query = currentVersion
+        ? `?current_version=${encodeURIComponent(currentVersion)}`
+        : "";
+      const res = await apiClient.get(`/mobile/version${query}`);
+      return res.data as {
+        latest_version: string;
+        min_supported_version: string;
+        apk_url: string;
+        force_update: boolean;
+        has_update: boolean;
+        current_version?: string | null;
+        release_notes?: string | null;
+      };
+    },
+  },
   auth: {
     login: async (credentials: any) => {
       const formData = new FormData();

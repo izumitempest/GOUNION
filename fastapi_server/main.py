@@ -1196,6 +1196,7 @@ def create_conversation(
 
 
 from fastapi.responses import RedirectResponse
+from urllib.parse import quote
 
 
 # Stories
@@ -1258,4 +1259,53 @@ async def health_check():
             "has_supabase_url": bool(os.getenv("SUPABASE_URL")),
             "has_supabase_key": bool(os.getenv("SUPABASE_SERVICE_KEY")),
         }
+    }
+
+
+def _parse_version(version: str) -> tuple:
+    """Convert dot-separated versions like 2026.04.13.1 into comparable tuples."""
+    if not version:
+        return (0,)
+    normalized = version.replace("-", ".").replace("_", ".")
+    parts = []
+    for piece in normalized.split("."):
+        if piece.isdigit():
+            parts.append(int(piece))
+        else:
+            digits = "".join(ch for ch in piece if ch.isdigit())
+            parts.append(int(digits) if digits else 0)
+    return tuple(parts or [0])
+
+
+@app.get("/mobile/version", response_model=schemas.MobileVersionInfo)
+async def mobile_version(current_version: Optional[str] = None):
+    """
+    Returns mobile update metadata.
+    - latest_version: latest published APK
+    - min_supported_version: minimum app version allowed to continue
+    - force_update: true when current version is below minimum supported
+    """
+    latest_version = os.getenv("MOBILE_LATEST_VERSION", "2026.04.13.1")
+    min_supported_version = os.getenv("MOBILE_MIN_SUPPORTED_VERSION", latest_version)
+    apk_url = os.getenv(
+        "MOBILE_APK_URL",
+        f"https://gounion-download.vercel.app/apk/gounion-{quote(latest_version)}.apk?v={quote(latest_version)}",
+    )
+    release_notes = os.getenv("MOBILE_RELEASE_NOTES")
+
+    current_parsed = _parse_version(current_version or "")
+    latest_parsed = _parse_version(latest_version)
+    min_supported_parsed = _parse_version(min_supported_version)
+
+    has_update = bool(current_version) and current_parsed < latest_parsed
+    force_update = bool(current_version) and current_parsed < min_supported_parsed
+
+    return {
+        "latest_version": latest_version,
+        "min_supported_version": min_supported_version,
+        "apk_url": apk_url,
+        "force_update": force_update,
+        "has_update": has_update,
+        "current_version": current_version,
+        "release_notes": release_notes,
     }

@@ -382,3 +382,13 @@ class Story(StoryBase):
 
     class Config:
         from_attributes = True
+
+
+class MobileVersionInfo(BaseModel):
+    latest_version: str
+    min_supported_version: str
+    apk_url: str
+    force_update: bool
+    has_update: bool
+    current_version: Optional[str] = None
+    release_notes: Optional[str] = None

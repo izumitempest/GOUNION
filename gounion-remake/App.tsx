@@ -30,6 +30,7 @@ import { API_URL, api } from "./services/api";
 import { usePushNotifications } from "./hooks/usePushNotifications";
 import { ToastProvider } from "./components/ui/Toast";
 import { GoUnionLoader } from "./components/ui/GoUnionLoader";
+import { APK_VERSION } from "./release";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -116,6 +117,68 @@ const AppBootState = ({
   );
 };
 
+type MobileUpdateInfo = {
+  latest_version: string;
+  min_supported_version: string;
+  apk_url: string;
+  force_update: boolean;
+  has_update: boolean;
+  current_version?: string | null;
+  release_notes?: string | null;
+};
+
+const MobileUpdateModal = ({
+  updateInfo,
+  onDismiss,
+}: {
+  updateInfo: MobileUpdateInfo;
+  onDismiss: () => void;
+}) => {
+  const openUpdate = () => {
+    if (Capacitor.isNativePlatform()) {
+      window.open(updateInfo.apk_url, "_blank");
+      return;
+    }
+    window.location.href = updateInfo.apk_url;
+  };
+
+  return (
+    <div className="fixed inset-0 z-[140] bg-black/80 backdrop-blur-sm flex items-center justify-center px-6">
+      <div className="glass-panel rounded-3xl p-8 w-full max-w-md text-white">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-primary font-black">
+          App Update
+        </p>
+        <h2 className="mt-3 font-serif text-3xl tracking-tight">Update Available</h2>
+        <p className="mt-3 text-sm text-zinc-300 leading-relaxed">
+          Version {updateInfo.latest_version} is available.
+          {updateInfo.force_update
+            ? " This update is required to continue using GoUnion."
+            : " Install now for the latest fixes and improvements."}
+        </p>
+        {updateInfo.release_notes && (
+          <p className="mt-3 text-xs text-zinc-400">{updateInfo.release_notes}</p>
+        )}
+        <div className="mt-7 flex items-center gap-3">
+          <button
+            onClick={openUpdate}
+            className="flex-1 h-11 rounded-xl bg-primary text-black text-xs font-black uppercase tracking-[0.16em] hover:brightness-95 transition-all"
+          >
+            Update Now
+          </button>
+          {!updateInfo.force_update && (
+            <button
+              onClick={onDismiss}
+              className="flex-1 h-11 rounded-xl border border-white/20 text-white text-xs font-black uppercase tracking-[0.16em] hover:bg-white/5 transition-all"
+            >
+              Later
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const useWebSocket = () => {
   const { user, isAuthenticated } = useAuthStore();
 
@@ -156,6 +219,7 @@ const AppRoutes = () => {
   const [backendError, setBackendError] = useState<string | null>(null);
   const [skipBackendGate, setSkipBackendGate] = useState(false);
   const [showPageLoader, setShowPageLoader] = useState(true);
+  const [mobileUpdateInfo, setMobileUpdateInfo] = useState<MobileUpdateInfo | null>(null);
 
   const isNativeApp = Capacitor.isNativePlatform();
   const hasDownloadedApk = useMemo(() => {
@@ -186,6 +250,32 @@ const AppRoutes = () => {
   useEffect(() => {
     void checkBackendHealth();
   }, []);
+
+  useEffect(() => {
+    if (!isNativeApp) return;
+
+    const loadUpdateStatus = async () => {
+      try {
+        const info = await api.mobile.getVersionInfo(APK_VERSION);
+        if (!info.has_update && !info.force_update) {
+          setMobileUpdateInfo(null);
+          return;
+        }
+
+        const dismissedKey = `gounion_update_dismissed_${info.latest_version}`;
+        const dismissed = localStorage.getItem(dismissedKey) === "true";
+        if (!info.force_update && dismissed) {
+          setMobileUpdateInfo(null);
+          return;
+        }
+        setMobileUpdateInfo(info);
+      } catch (error) {
+        console.error("Mobile update check failed", error);
+      }
+    };
+
+    void loadUpdateStatus();
+  }, [isNativeApp]);
 
   useEffect(() => {
     setShowPageLoader(true);
@@ -222,6 +312,22 @@ const AppRoutes = () => {
   return (
     <>
       {showPageLoader && <GoUnionLoader message="Preparing page..." />}
+      {mobileUpdateInfo && (
+        <MobileUpdateModal
+          updateInfo={mobileUpdateInfo}
+          onDismiss={() => {
+            try {
+              localStorage.setItem(
+                `gounion_update_dismissed_${mobileUpdateInfo.latest_version}`,
+                "true"
+              );
+            } catch {
+              // Ignore storage errors in restricted contexts.
+            }
+            setMobileUpdateInfo(null);
+          }}
+        />
+      )}
       <Routes>
         <Route
           path="/login"
