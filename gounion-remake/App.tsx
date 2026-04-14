@@ -63,54 +63,17 @@ const PrivateRoute = ({ children }: { children?: React.ReactNode }) => {
   return <AppLayout>{children}</AppLayout>;
 };
 
-const AppBootState = ({
-  isChecking,
-  error,
-  onRetry,
-  onContinue,
-}: {
-  isChecking: boolean;
-  error: string | null;
-  onRetry: () => void;
-  onContinue: () => void;
-}) => {
+const AppStartupSplash = () => {
   return (
     <div className="min-h-screen w-full bg-[#030303] text-white flex items-center justify-center px-6">
-      <div className="glass-panel rounded-3xl p-10 w-full max-w-md text-center">
+      <div className="glass-panel rounded-3xl p-10 w-full max-w-sm text-center">
         <div className="mx-auto w-16 h-16 rounded-2xl bg-white text-black flex items-center justify-center font-serif font-black text-3xl">
           G
         </div>
-        <h1 className="mt-5 font-serif text-3xl tracking-tight">
-          {isChecking ? "Connecting..." : "Connection Needed"}
-        </h1>
-        <p className="mt-3 text-sm text-zinc-300 leading-relaxed">
-          {isChecking
-            ? "Loading GoUnion and verifying backend availability."
-            : error}
-        </p>
-        <div className="mt-6 flex items-center justify-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce [animation-delay:-0.2s]" />
-          <span className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce [animation-delay:-0.1s]" />
-          <span className="w-2.5 h-2.5 rounded-full bg-primary animate-bounce" />
-        </div>
-        {!isChecking && (
-          <div className="mt-8 space-y-3">
-            <button
-              onClick={onRetry}
-              className="w-full h-11 px-6 rounded-xl bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-zinc-200 transition-all"
-            >
-              Retry Connection
-            </button>
-            <button
-              onClick={onContinue}
-              className="w-full h-11 px-6 rounded-xl border border-white/20 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/5 transition-all"
-            >
-              Continue To Login
-            </button>
-          </div>
-        )}
-        <p className="mt-4 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-          API {API_URL}
+        <h1 className="mt-5 font-serif text-3xl tracking-tight">GoUnion</h1>
+        <p className="mt-3 text-sm text-zinc-300 leading-relaxed">Loading</p>
+        <p className="mt-4 text-2xl text-primary animate-pulse" aria-hidden="true">
+          .
         </p>
       </div>
     </div>
@@ -215,9 +178,7 @@ const useWebSocket = () => {
 const AppRoutes = () => {
   const { isAuthenticated } = useAuthStore();
   const location = useLocation();
-  const [checkingBackend, setCheckingBackend] = useState(true);
-  const [backendError, setBackendError] = useState<string | null>(null);
-  const [skipBackendGate, setSkipBackendGate] = useState(false);
+  const [showStartupSplash, setShowStartupSplash] = useState(true);
   const [showPageLoader, setShowPageLoader] = useState(true);
   const [mobileUpdateInfo, setMobileUpdateInfo] = useState<MobileUpdateInfo | null>(null);
 
@@ -232,23 +193,11 @@ const AppRoutes = () => {
 
   const defaultPublicRoute = isNativeApp || hasDownloadedApk ? "/login" : "/download";
 
-  const checkBackendHealth = async () => {
-    setCheckingBackend(true);
-    setBackendError(null);
-    try {
-      await api.health.check();
-    } catch (error: any) {
-      const message =
-        error?.response?.data?.detail ||
-        "Cannot reach the backend right now. Please confirm your API URL and backend CORS settings, then retry.";
-      setBackendError(message);
-    } finally {
-      setCheckingBackend(false);
-    }
-  };
-
   useEffect(() => {
-    void checkBackendHealth();
+    const timer = window.setTimeout(() => {
+      setShowStartupSplash(false);
+    }, 850);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -294,15 +243,8 @@ const AppRoutes = () => {
     "/download",
   ];
 
-  if (!skipBackendGate && (checkingBackend || backendError)) {
-    return (
-      <AppBootState
-        isChecking={checkingBackend}
-        error={backendError}
-        onRetry={checkBackendHealth}
-        onContinue={() => setSkipBackendGate(true)}
-      />
-    );
+  if (showStartupSplash) {
+    return <AppStartupSplash />;
   }
 
   if (!isAuthenticated && !PUBLIC_ROUTES.includes(location.pathname)) {
