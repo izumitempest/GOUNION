@@ -445,29 +445,48 @@ async def reset_password(body: schemas.ResetPasswordRequest):
 
 
 @app.post("/users/", response_model=schemas.User)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    # Check if username exists locally
-    db_user = crud.get_user_by_username(db, username=user.username)
-    if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
-
+async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     try:
+        # Check if username exists locally
+        db_user = crud.get_user_by_username(db, username=user.username)
+        if db_user:
+            raise HTTPException(status_code=400, detail="Username already registered")
+
+        # Check if email exists locally (prevent psycopg2 IntegrityError later)
+        if hasattr(crud, "get_user_by_email"):
+            db_email = crud.get_user_by_email(db, email=user.email)
+            if db_email:
+                raise HTTPException(status_code=400, detail="An account with this email already exists.")
+
         # Sign up with Supabase
-        auth_response = supabase.auth.sign_up(
+        auth_response = await asyncio.to_thread(
+            supabase.auth.sign_up,
             {
                 "email": user.email,
                 "password": user.password,
             }
         )
+        
         if not auth_response.user:
-            raise HTTPException(status_code=400, detail="Supabase registration failed")
+            raise HTTPException(status_code=400, detail="Registration failed. Please try again.")
 
         # Create user in our DB using Supabase ID
         return crud.create_user(db=db, user=user, supabase_id=auth_response.user.id)
 
+    except HTTPException:
+        raise
     except Exception as e:
-        # If Supabase fails (e.g. email taken), return error
-        raise HTTPException(status_code=400, detail=str(e))
+        error_msg = str(e)
+        print(f"REGISTRATION ERROR: {error_msg}")
+        
+        if "already registered" in error_msg.lower() or "already exists" in error_msg.lower():
+            detail = "An account with this email or username already exists."
+        elif "identity_already_exists" in error_msg:
+             detail = "This email is already linked to another account."
+        else:
+            detail = "Registration service temporarily unavailable. Please try again later."
+            
+        raise HTTPException(status_code=400, detail=detail)
 
 
 @app.get("/users/me/", response_model=schemas.User)
