@@ -8,8 +8,11 @@ import os
 load_dotenv()
 
 from sqlalchemy.orm import Session, joinedload
-from . import crud, models, schemas
+from . import crud, models, schemas, migrate
 from .database import SessionLocal, engine
+
+# Run migrations at startup
+migrate.apply_migration()
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional, List
