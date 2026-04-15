@@ -47,6 +47,7 @@ class User(Base):
     # hashed_password removed - handled by Supabase Auth
     is_active = Column(Boolean, default=True)
     role = Column(String, default="user")  # 'user', 'moderator', 'admin'
+    is_verified = Column(Boolean, default=False)
 
 
     profile = relationship("Profile", back_populates="user", uselist=False)

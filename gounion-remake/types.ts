@@ -11,6 +11,7 @@ export interface User {
   isFollowing?: boolean;
   role: 'user' | 'moderator' | 'admin';
   isActive?: boolean;
+  is_verified?: boolean;
 }
 
 export interface Post {

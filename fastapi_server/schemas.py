@@ -57,6 +57,7 @@ class User(UserBase):
     id: str
     is_active: bool
     role: str
+    is_verified: bool
     profile: Optional[Profile] = None
 
     class Config:

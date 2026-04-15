@@ -238,7 +238,16 @@ async def get_current_user(
                 detail="Your account has been suspended."
             )
             
-        logger.info(f"[auth] User {user.username} loaded successfully.")
+        # Sync verification status from Supabase to local DB
+        email_confirmed_at = getattr(user_response.user, 'email_confirmed_at', None)
+        if email_confirmed_at and not getattr(user, 'is_verified', False):
+             user.is_verified = True
+             db.add(user)
+             db.commit()
+             db.refresh(user)
+             logger.info(f"[auth] User {user.username} marked as verified in local DB.")
+
+        logger.info(f"[auth] User {user.username} loaded successfully (Verified: {getattr(user, 'is_verified', False)}).")
         return user
     except HTTPException:
         raise
