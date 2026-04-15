@@ -10,9 +10,6 @@ load_dotenv()
 from sqlalchemy.orm import Session, joinedload
 from . import crud, models, schemas, migrate
 from .database import SessionLocal, engine
-
-# Run migrations at startup
-migrate.apply_migration()
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from typing import Optional, List
@@ -35,6 +32,16 @@ app = FastAPI()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Run migrations at startup
+@app.on_event("startup")
+async def startup_event():
+    logger.info("[startup] Verifying database schema...")
+    try:
+        migrate.apply_migration()
+        logger.info("[startup] Schema verification complete.")
+    except Exception as e:
+        logger.error(f"[startup] Migration system error: {e}")
 
 # Global Exception Handler to catch 500s and ensure CORS headers
 @app.exception_handler(Exception)
