@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from database import engine
+from .database import engine
 
 def apply_migration():
     with engine.connect() as conn:
