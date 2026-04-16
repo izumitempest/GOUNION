@@ -40,13 +40,13 @@ const queryClient = new QueryClient({
 // Layout Component to wrap authenticated routes
 const AppLayout = ({ children }: { children?: React.ReactNode }) => {
   const { user } = useAuthStore();
-  // If user exists, default to they ARE NOT verified until proven otherwise
-  const isVerified = user ? (user.is_verified === true) : true; 
+  // Only show banner if backend explicitly says is_verified === false
+  const isVerified = user?.is_verified ?? true;
 
   return (
     <div className="flex flex-col h-screen bg-[#030303] text-white selection:bg-white/20 relative">
       {!isVerified && (
-        <div className="bg-primary/20 border-b border-primary/20 py-3 px-4 flex items-center justify-center gap-4 animate-in slide-in-from-top duration-500 z-[110]">
+        <div className="bg-primary/20 border-b border-primary/20 py-3 px-4 flex items-center justify-center gap-4 z-[110]">
           <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_#c4ff0e]" />
           <p className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] text-primary">
             Security Check: Please confirm your campus email
@@ -56,18 +56,18 @@ const AppLayout = ({ children }: { children?: React.ReactNode }) => {
           </button>
         </div>
       )}
-      
+
       <TopNav />
+      <MobileNav />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto hide-scrollbar md:pl-64 lg:pr-80 pb-28 md:pb-0">
+        <main className="flex-1 overflow-y-auto hide-scrollbar md:pl-64 lg:pr-80 pb-4 md:pb-0">
           <div className="px-4 py-6 md:px-8 max-w-5xl mx-auto">
             {children}
           </div>
         </main>
         <RightSidebar />
-        <MobileNav />
       </div>
     </div>
   );
