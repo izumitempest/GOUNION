@@ -40,21 +40,25 @@ const queryClient = new QueryClient({
 // Layout Component to wrap authenticated routes
 const AppLayout = ({ children }: { children?: React.ReactNode }) => {
   const { user } = useAuthStore();
-  const isVerified = user?.is_verified ?? true; // Default to true if user data not yet loaded
+  // If user exists, default to they ARE NOT verified until proven otherwise
+  const isVerified = user ? (user.is_verified === true) : true; 
 
   return (
     <div className="flex flex-col h-screen bg-[#030303] text-white selection:bg-white/20 relative">
       {!isVerified && (
-        <div className="bg-primary/10 border-b border-primary/20 py-3 px-4 flex items-center justify-center gap-4 animate-in slide-in-from-top duration-500 z-[100]">
-          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-primary/80">
-            Initialize Profile: Please verify your campus email
+        <div className="bg-primary/20 border-b border-primary/20 py-3 px-4 flex items-center justify-center gap-4 animate-in slide-in-from-top duration-500 z-[110]">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_#c4ff0e]" />
+          <p className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] text-primary">
+            Security Check: Please confirm your campus email
           </p>
-          <button className="bg-primary text-black px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-            Resend Link
+          <button className="bg-primary text-black px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform active:scale-95 shadow-[0_0_30px_rgba(196,255,14,0.3)]">
+            Resend
           </button>
         </div>
       )}
+      
+      <TopNav />
+
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto hide-scrollbar md:pl-64 lg:pr-80 pb-28 md:pb-0">
