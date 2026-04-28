@@ -92,7 +92,7 @@ class Post(Base):
     user_id = Column(String, ForeignKey("users.id"))
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     image = Column(String, nullable=True)
-    video = Column(String, nullable=True)
+    video = Column(String, null__tablename__able=True)
     caption = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

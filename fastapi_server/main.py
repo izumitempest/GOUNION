@@ -446,15 +446,25 @@ async def reset_password(body: schemas.ResetPasswordRequest):
     Verifies the access_token from the Supabase reset email redirect and updates the user's password.
     """
     try:
-        user_response = await asyncio.to_thread(supabase.auth.get_user, body.token)
-        if not user_response.user:
-            raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
-
-        await asyncio.to_thread(
-            supabase.auth.admin.update_user_by_id,
-            user_response.user.id,
-            {"password": body.new_password},
-        )
+        import httpx
+        import os
+        supabase_url = os.environ.get("SUPABASE_URL")
+        supabase_key = os.environ.get("SUPABASE_KEY")
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.put(
+                f"{supabase_url}/auth/v1/user",
+                headers={
+                    "Authorization": f"Bearer {body.token}",
+                    "apikey": supabase_key,
+                },
+                json={"password": body.new_password}
+            )
+            
+            if response.status_code >= 400:
+                print(f"Reset password error from Supabase: {response.text}")
+                raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+                
         return {"message": "Password updated successfully. You can now log in."}
     except HTTPException:
         raise
