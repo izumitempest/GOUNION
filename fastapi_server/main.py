@@ -462,8 +462,14 @@ async def reset_password(body: schemas.ResetPasswordRequest):
             )
             
             if response.status_code >= 400:
+                error_detail = "Invalid or expired reset token."
+                try:
+                    error_data = response.json()
+                    error_detail = error_data.get("msg") or error_data.get("message") or error_detail
+                except:
+                    pass
                 print(f"Reset password error from Supabase: {response.text}")
-                raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+                raise HTTPException(status_code=400, detail=error_detail)
                 
         return {"message": "Password updated successfully. You can now log in."}
     except HTTPException:
