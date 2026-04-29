@@ -449,7 +449,7 @@ async def reset_password(body: schemas.ResetPasswordRequest):
         import httpx
         import os
         supabase_url = os.environ.get("SUPABASE_URL")
-        supabase_key = os.environ.get("SUPABASE_KEY")
+        supabase_key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY")
         
         async with httpx.AsyncClient() as client:
             response = await client.put(
