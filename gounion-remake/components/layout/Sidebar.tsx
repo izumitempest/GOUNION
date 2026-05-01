@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Link, useLocation } from "react-router-dom";
 import {
   Home,
   Compass,
@@ -24,12 +24,12 @@ const NAV_ITEMS = [
   { icon: Users, label: "Groups", path: "/groups" },
   { icon: MessageSquare, label: "Messages", path: "/messages" },
   { icon: Bell, label: "Notifications", path: "/notifications" },
+  { icon: GraduationCap, label: "Alumni", path: "/alumni", comingSoon: true },
 ];
 
 export const Sidebar = () => {
   const { user, logout } = useAuthStore();
   const location = useLocation();
-  const navigate = useNavigate();
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread'],
@@ -60,8 +60,7 @@ export const Sidebar = () => {
           <input
             type="text"
             placeholder="Search GoUnion..."
-            onFocus={() => navigate("/search")} 
-            className="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all cursor-pointer"
+            className="w-full bg-white/5 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
           />
         </div>
       </div>
@@ -69,24 +68,38 @@ export const Sidebar = () => {
       <nav className="flex-1 px-4 space-y-1">
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname === item.path;
+          const isComingSoon = item.comingSoon;
+          
           return (
             <NavLink
               key={item.path}
-              to={item.path}
+              to={isComingSoon ? "#" : item.path}
+              onClick={(e) => {
+                if (isComingSoon) {
+                  e.preventDefault();
+                }
+              }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group
                 ${
-                  isActive
+                  isActive && !isComingSoon
                     ? "bg-gradient-to-r from-white/10 to-white/5 text-white border border-white/10 shadow-[0_0_15px_rgba(255,255,255,0.05)]"
-                    : "text-white/60 hover:bg-white/5 hover:text-white border border-transparent"
+                    : isComingSoon 
+                      ? "text-white/30 cursor-not-allowed border border-transparent"
+                      : "text-white/60 hover:bg-white/5 hover:text-white border border-transparent"
                 }
               `}
             >
               <item.icon
                 className={`w-5 h-5 transition-transform duration-200 group-hover:scale-110 ${
-                  isActive ? "text-white" : "text-white/60"
+                  isActive && !isComingSoon ? "text-white" : "text-white/60"
                 }`}
               />
               {item.label}
+              {isComingSoon && (
+                <span className="ml-auto text-[8px] font-black uppercase tracking-widest text-white/20 px-2 py-0.5 rounded-md border border-white/5">
+                  Soon
+                </span>
+              )}
               {item.path === '/notifications' && unreadCount > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-[0_0_10px_rgba(239,68,68,0.5)]">
                   {unreadCount > 99 ? '99+' : unreadCount}

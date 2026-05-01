@@ -1,16 +1,21 @@
 /// <reference types="vite/client" />
 import axios from 'axios';
 import { useAuthStore } from '../store';
+import { authStorage } from '../utils/persistentStorage';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://gounion-backend.onrender.com';
+const DEFAULT_PROD_API_URL = 'https://gounion-backend.onrender.com';
+export const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? 'http://127.0.0.1:8001' : DEFAULT_PROD_API_URL);
 
 // Create axios instance
 const apiClient = axios.create({
   baseURL: API_URL,
+  timeout: 15000,
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = authStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -26,7 +31,7 @@ apiClient.interceptors.response.use(
 
     if (isSuspended || isUnauthorized) {
       useAuthStore.getState().logout(); // Aggressively flush Zustand and Session memory
-      window.location.href = '/#/login';
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
@@ -60,7 +65,7 @@ export const transformUser = (user: any) => {
 };
 
 const transformPost = (post: any) => {
-  const userStr = localStorage.getItem('user_data');
+  const userStr = authStorage.getItem('user_data');
   const user = userStr ? JSON.parse(userStr) : null;
   const currentUserId = user ? user.id : null;
 
@@ -81,6 +86,29 @@ const transformPost = (post: any) => {
 };
 
 export const api = {
+  health: {
+    check: async () => {
+      const res = await apiClient.get('/health');
+      return res.data;
+    },
+  },
+  mobile: {
+    getVersionInfo: async (currentVersion?: string) => {
+      const query = currentVersion
+        ? `?current_version=${encodeURIComponent(currentVersion)}`
+        : "";
+      const res = await apiClient.get(`/mobile/version${query}`);
+      return res.data as {
+        latest_version: string;
+        min_supported_version: string;
+        apk_url: string;
+        force_update: boolean;
+        has_update: boolean;
+        current_version?: string | null;
+        release_notes?: string | null;
+      };
+    },
+  },
   auth: {
     login: async (credentials: any) => {
       const formData = new FormData();
@@ -89,12 +117,12 @@ export const api = {
       
       const res = await apiClient.post('/token', formData);
       const accessToken = res.data.access_token;
-      localStorage.setItem('access_token', accessToken);
+      authStorage.setItem('access_token', accessToken);
       
       const userRes = await apiClient.get('/users/me/');
       const transformedUser = transformUser(userRes.data);
-      localStorage.setItem('user_data', JSON.stringify(transformedUser));
-      localStorage.setItem('user_id', transformedUser.id);
+      authStorage.setItem('user_data', JSON.stringify(transformedUser));
+      authStorage.setItem('user_id', transformedUser.id);
       
       return { user: transformedUser, access_token: accessToken };
     },
@@ -123,7 +151,11 @@ export const api = {
   },
   posts: {
     getFeed: async ({ pageParam = 0 }: { pageParam?: number } = {}) => {
-      const res = await apiClient.get(`/posts/?skip=${pageParam * 10}&limit=10`);
+      const res = await apiClient.get(`/feed/?skip=${pageParam * 10}&limit=10`);
+      return res.data.map(transformPost);
+    },
+    getReels: async ({ pageParam = 0 }: { pageParam?: number } = {}) => {
+      const res = await apiClient.get(`/feed/?skip=${pageParam * 10}&limit=10&reels=true`);
       return res.data.map(transformPost);
     },
     create: async (data: any) => {
@@ -233,7 +265,7 @@ export const api = {
     },
     getSuggestions: async () => {
       const res = await apiClient.get('/search/users?q=');
-      return res.data.map(transformUser).filter((u: any) => u.id !== localStorage.getItem('user_id'));
+      return res.data.map(transformUser).filter((u: any) => u.id !== authStorage.getItem('user_id'));
     }
   },
   groups: {
@@ -337,14 +369,6 @@ export const api = {
     users: async (query: string) => {
       const res = await apiClient.get(`/search/users?q=${encodeURIComponent(query)}`);
       return res.data.map(transformUser);
-    },
-    posts: async (query: string) => {
-      const res = await apiClient.get(`/search/posts?q=${encodeURIComponent(query)}`);
-      return res.data.map(transformPost);
-    },
-    groups: async (query: string) => {
-      const res = await apiClient.get(`/search/groups?q=${encodeURIComponent(query)}`);
-      return res.data; // groups already return correct format mostly
     }
   },
   friends: {
@@ -360,7 +384,7 @@ export const api = {
   chats: {
     getAll: async () => {
       const res = await apiClient.get('/conversations/');
-      const currentUserId = localStorage.getItem('user_id');
+      const currentUserId = authStorage.getItem('user_id');
       return res.data.map((c: any) => ({
         id: c.id.toString(),
         partner: transformUser(c.participants.find((p: any) => p.id !== currentUserId) || c.participants[0]),
@@ -463,7 +487,7 @@ export const api = {
         timestamp: new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         likesCount: s.likes?.length || 0,
         viewsCount: s.views?.length || 0,
-        isLiked: s.likes?.some((l: any) => l.user_id === localStorage.getItem('user_id')),
+        isLiked: s.likes?.some((l: any) => l.user_id === authStorage.getItem('user_id')),
       }));
     },
     create: async (data: any) => {

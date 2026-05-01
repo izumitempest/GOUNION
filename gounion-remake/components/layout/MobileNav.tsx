@@ -1,18 +1,18 @@
 import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import {
-  Home,
-  Users,
-  MessageSquare,
-  User,
-  MoreHorizontal,
-  Bell,
-  Compass,
-  GraduationCap,
-  ShieldCheck,
-  Settings,
+import { NavLink, Link } from "react-router-dom";
+import { 
+  Home, 
+  Users, 
+  MessageSquare, 
+  User, 
+  MoreHorizontal, 
+  Compass, 
+  GraduationCap, 
+  ShieldCheck, 
+  Settings, 
   LogOut,
   X,
+  Bell
 } from "lucide-react";
 import { useAuthStore } from "../../store";
 import { useQuery } from "@tanstack/react-query";
@@ -21,13 +21,13 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export const MobileNav = () => {
   const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
-  const [showOthers, setShowOthers] = useState(false);
+  const [isOthersOpen, setIsOthersOpen] = useState(false);
 
   const { data: unreadData } = useQuery({
-    queryKey: ["notifications-unread"],
+    queryKey: ['notifications-unread'],
     queryFn: api.notifications.getUnreadCount,
     refetchInterval: 30000,
+    enabled: !!user,
   });
   const unreadCount = unreadData?.count || 0;
 
@@ -38,140 +38,135 @@ export const MobileNav = () => {
     { icon: User, label: "Profile", path: `/profile/${user?.username}` },
   ];
 
-  const OTHERS_ITEMS = [
+  const OTHER_ITEMS = [
     { icon: Bell, label: "Alerts", path: "/notifications", badge: unreadCount },
     { icon: Compass, label: "Discover", path: "/discover" },
     { icon: GraduationCap, label: "Alumni", path: "/alumni" },
-    ...(user?.role === "admin" || user?.role === "moderator"
-      ? [{ icon: ShieldCheck, label: "Admin Panel", path: "/admin" }]
+    ...(user?.role === "admin" || user?.role === "moderator" 
+      ? [{ icon: ShieldCheck, label: "Admin Panel", path: "/admin" }] 
       : []),
     { icon: Settings, label: "Settings", path: "/settings" },
   ];
 
   return (
     <>
-      {/* Facebook-style top tab bar — mobile only */}
-      <div className="md:hidden sticky top-16 left-0 right-0 w-full bg-[#0a0a0c]/95 backdrop-blur-xl border-b border-white/5 z-[99] flex items-center justify-around h-12">
+      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-md h-16 bg-black/60 backdrop-blur-2xl border border-white/10 z-50 flex items-center justify-around px-2 rounded-2xl shadow-2xl">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
-            className={({ isActive }) =>
-              `relative flex flex-col items-center justify-center h-full flex-1 transition-all duration-200 ${
-                isActive ? "text-primary" : "text-zinc-500"
-              }`
-            }
+            className={({ isActive }) => `
+              relative flex flex-col items-center justify-center h-full flex-1 transition-all duration-300
+              ${isActive ? "text-violet-400" : "text-zinc-500 hover:text-zinc-300"}
+            `}
           >
             {({ isActive }) => (
               <>
-                <item.icon size={20} />
-                <span className="text-[8px] mt-0.5 font-bold uppercase tracking-wider">
-                  {item.label}
-                </span>
                 {isActive && (
                   <motion.div
-                    layoutId="mobileActiveTab"
-                    className="absolute bottom-0 left-2 right-2 h-[2px] bg-primary rounded-full"
-                    transition={{ type: "spring", duration: 0.4 }}
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-violet-600/10 rounded-xl"
+                    transition={{ type: "spring", duration: 0.5 }}
                   />
                 )}
+                <item.icon
+                  size={20}
+                  className={`relative z-10 transition-transform ${isActive ? "scale-110" : ""}`}
+                />
+                <span className="relative z-10 text-[9px] mt-1 font-bold tracking-tight uppercase">
+                  {item.label}
+                </span>
               </>
             )}
           </NavLink>
         ))}
 
-        {/* Others button */}
         <button
-          onClick={() => setShowOthers(!showOthers)}
-          className={`relative flex flex-col items-center justify-center h-full flex-1 transition-all duration-200 ${
-            showOthers ? "text-primary" : "text-zinc-500"
-          }`}
+          onClick={() => setIsOthersOpen(true)}
+          className={`relative flex flex-col items-center justify-center h-full flex-1 transition-all duration-300 ${isOthersOpen ? "text-violet-400" : "text-zinc-500"}`}
         >
-          <MoreHorizontal size={20} />
-          <span className="text-[8px] mt-0.5 font-bold uppercase tracking-wider">
-            Others
-          </span>
-          {unreadCount > 0 && (
-            <span className="absolute top-1 right-[25%] bg-red-500 text-white text-[7px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
-          )}
+          <div className="relative">
+            <MoreHorizontal size={20} />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1.5 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse" />
+            )}
+          </div>
+          <span className="text-[9px] mt-1 font-bold tracking-tight uppercase">Others</span>
         </button>
       </div>
 
-      {/* Others overlay menu */}
       <AnimatePresence>
-        {showOthers && (
-          <>
-            {/* Backdrop */}
+        {isOthersOpen && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-24 md:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]"
-              onClick={() => setShowOthers(false)}
+              onClick={() => setIsOthersOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
-
-            {/* Grid menu */}
+            
             <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ type: "spring", duration: 0.35 }}
-              className="md:hidden fixed top-28 left-4 right-4 bg-[#111113] border border-white/10 rounded-2xl p-4 z-[201] shadow-[0_20px_60px_rgba(0,0,0,0.8)]"
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-md bg-zinc-900/90 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 shadow-2xl overflow-hidden"
             >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                  More Options
-                </span>
-                <button
-                  onClick={() => setShowOthers(false)}
-                  className="text-zinc-500 hover:text-white transition-colors"
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="font-serif text-2xl text-white">More Pages</h2>
+                <button 
+                  onClick={() => setIsOthersOpen(false)}
+                  className="p-2 bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors"
                 >
-                  <X size={18} />
+                  <X size={20} />
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                {OTHERS_ITEMS.map((item) => (
-                  <button
+              <div className="grid grid-cols-2 gap-4">
+                {OTHER_ITEMS.map((item) => (
+                  <Link
                     key={item.path}
-                    onClick={() => {
-                      setShowOthers(false);
-                      navigate(item.path);
+                    to={item.path}
+                    onClick={(e) => {
+                      if (item.label === "Alumni") {
+                        e.preventDefault();
+                        return;
+                      }
+                      setIsOthersOpen(false);
                     }}
-                    className="flex flex-col items-center gap-2 p-4 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-all active:scale-95 relative"
+                    className={`flex flex-col items-center justify-center p-6 bg-white/5 border border-white/5 rounded-3xl transition-all group ${item.label === "Alumni" ? "opacity-50 cursor-not-allowed" : "hover:bg-white/10 hover:border-white/10"}`}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                      <item.icon size={20} className="text-violet-400" />
+                    <div className="w-12 h-12 rounded-2xl bg-violet-600/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform relative">
+                      <item.icon className="w-6 h-6 text-violet-400" />
+                      {item.badge && item.badge > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full shadow-lg">
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
                     </div>
-                    <span className="text-[11px] font-bold text-zinc-300">
-                      {item.label}
-                    </span>
-                    {"badge" in item && (item as any).badge > 0 && (
-                      <span className="absolute top-2 right-2 bg-red-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full">
-                        {(item as any).badge}
-                      </span>
+                    <span className="text-sm font-medium text-white">{item.label}</span>
+                    {item.label === "Alumni" && (
+                      <span className="text-[8px] font-black uppercase tracking-widest text-violet-400 mt-1">Coming Soon</span>
                     )}
-                  </button>
+                  </Link>
                 ))}
               </div>
 
-              {/* Logout */}
-              <button
-                onClick={() => {
-                  setShowOthers(false);
-                  logout();
-                }}
-                className="w-full mt-4 flex items-center justify-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 hover:bg-red-500/20 transition-all active:scale-95"
-              >
-                <LogOut size={16} />
-                <span className="text-[10px] font-black uppercase tracking-widest">
+              <div className="mt-8 pt-8 border-t border-white/5">
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsOthersOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 font-bold text-xs uppercase tracking-widest hover:bg-red-500/20 transition-all"
+                >
+                  <LogOut size={18} />
                   Logout Session
-                </span>
-              </button>
+                </button>
+              </div>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
     </>
