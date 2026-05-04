@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { User } from './types';
+import { authStorage } from './utils/persistentStorage';
 
 interface AuthState {
   user: User | null;
@@ -10,9 +11,10 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => {
-  // Initialize from localStorage
-  const token = localStorage.getItem('access_token');
-  const userStr = localStorage.getItem('user_data');
+  authStorage.migrateLegacySessionToLocal();
+
+  const token = authStorage.getItem('access_token');
+  const userStr = authStorage.getItem('user_data');
   let user = null;
   try {
     user = userStr ? JSON.parse(userStr) : null;
@@ -25,13 +27,13 @@ export const useAuthStore = create<AuthState>((set) => {
     token: token,
     isAuthenticated: !!token,
     login: (user, token) => {
-      localStorage.setItem('access_token', token);
-      localStorage.setItem('user_data', JSON.stringify(user));
+      authStorage.setItem('access_token', token);
+      authStorage.setItem('user_data', JSON.stringify(user));
+      authStorage.setItem('user_id', user.id);
       set({ user, token, isAuthenticated: true });
     },
     logout: () => {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user_data');
+      authStorage.clearAuth();
       set({ user: null, token: null, isAuthenticated: false });
     },
   };

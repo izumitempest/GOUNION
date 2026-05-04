@@ -9,6 +9,10 @@ class ForgotPasswordRequest(BaseModel):
     email: str
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
@@ -65,7 +69,6 @@ class User(UserBase):
     id: str
     is_active: bool
     role: str
-    is_verified: bool
     profile: Optional[Profile] = None
 
     class Config:
@@ -86,6 +89,8 @@ class Comment(CommentBase):
     post_id: int
     created_at: datetime
     user: User
+    likes: List[User] = []
+    likes_count: int = 0
 
     class Config:
         from_attributes = True
@@ -345,6 +350,7 @@ class Conversation(ConversationBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    refresh_token: Optional[str] = None
 
 
 class TokenData(BaseModel):
@@ -391,3 +397,13 @@ class Story(StoryBase):
 
     class Config:
         from_attributes = True
+
+
+class MobileVersionInfo(BaseModel):
+    latest_version: str
+    min_supported_version: str
+    apk_url: str
+    force_update: bool
+    has_update: bool
+    current_version: Optional[str] = None
+    release_notes: Optional[str] = None

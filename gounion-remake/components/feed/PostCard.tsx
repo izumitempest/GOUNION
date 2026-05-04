@@ -64,6 +64,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["discover-reels"] });
+      queryClient.invalidateQueries({ queryKey: ["profile-posts", post.author.username] });
+      if (post.groupId) {
+        queryClient.invalidateQueries({ queryKey: ["group-posts", post.groupId] });
+      }
     },
   });
 
@@ -81,6 +86,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
     onSuccess: () => {
       toast("Post deleted successfully", "success");
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["discover-reels"] });
+      queryClient.invalidateQueries({ queryKey: ["profile-posts", post.author.username] });
+      if (post.groupId) {
+        queryClient.invalidateQueries({ queryKey: ["group-posts", post.groupId] });
+      }
     },
   });
 

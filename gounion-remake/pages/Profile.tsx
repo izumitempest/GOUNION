@@ -15,6 +15,7 @@ import { useAuthStore } from "../store";
 import { motion, AnimatePresence } from "framer-motion";
 import { EditProfileModal } from "../components/profile/EditProfileModal";
 import { PostCard } from "../components/feed/PostCard";
+import { CreatePost } from "../components/feed/CreatePost";
 import { api } from "../services/api";
 
 export const Profile = () => {
@@ -182,13 +183,12 @@ export const Profile = () => {
             </button>
           ) : (
             <>
-              <button 
-                onClick={() => user?.id && chatMutation.mutate(user.id)}
-                disabled={chatMutation.isPending}
-                className="p-2.5 bg-black/50 backdrop-blur-md border border-white/10 text-white rounded-xl hover:bg-black/70 transition-colors disabled:opacity-50"
+              <Link 
+                to={`/messages?userId=${user.id}`}
+                className="p-2.5 bg-black/50 backdrop-blur-md border border-white/10 text-white rounded-xl hover:bg-black/70 transition-colors"
               >
                 <MessageSquare size={20} />
-              </button>
+              </Link>
               <button
                 onClick={() => followMutation.mutate()}
                 className={`px-6 py-2 rounded-xl text-sm font-medium transition-colors ${
@@ -223,7 +223,7 @@ export const Profile = () => {
               </div>
             </div>
             
-            <div className="flex gap-6 mt-8 pt-6 border-t border-white/5">
+            <div className="flex flex-wrap gap-x-8 gap-y-4 mt-8 pt-6 border-t border-white/5">
               <div className="cursor-pointer" onClick={() => setActiveTab("followers")}>
                 <p className="text-white font-serif text-xl">{user.followers}</p>
                 <p className="text-[10px] text-white/30 uppercase font-bold tracking-wider">Followers</p>
@@ -231,6 +231,10 @@ export const Profile = () => {
               <div className="cursor-pointer" onClick={() => setActiveTab("following")}>
                 <p className="text-white font-serif text-xl">{user.following}</p>
                 <p className="text-[10px] text-white/30 uppercase font-bold tracking-wider">Following</p>
+              </div>
+              <div>
+                <p className="text-primary font-serif text-xl">{user.totalLikes || 0}</p>
+                <p className="text-[10px] text-white/30 uppercase font-bold tracking-wider">Total Likes</p>
               </div>
             </div>
           </div>
@@ -266,6 +270,9 @@ export const Profile = () => {
                 <Skeleton className="h-64 rounded-3xl w-full" />
               ) : (
                 <div className="space-y-6 text-white">
+                  {activeTab === "posts" && isOwnProfile && (
+                    <CreatePost profileUsername={username} />
+                  )}
                   {(activeTab === "media" ? posts?.filter((p: any) => p.imageUrl) : posts)?.map((post: any) => (
                     <PostCard key={post.id} post={post} />
                   ))}

@@ -151,6 +151,11 @@ def get_feed_posts(db: Session, user_id: str, skip: int = 0, limit: int = 50, se
         .all()
     )
 
+    if reels:
+        query = query.filter(models.Post.video.isnot(None))
+
+    return query.order_by(func.random()).offset(skip).limit(limit).all()
+
 
 def mark_post_as_seen(db: Session, user_id: str, post_id: int):
     """Logs a post as seen by a user to prevent showing it again too soon."""
@@ -304,10 +309,57 @@ def create_comment(
 def get_comments(db: Session, post_id: int):
     return (
         db.query(models.Comment)
+        .options(joinedload(models.Comment.user), selectinload(models.Comment.likes))
         .filter(models.Comment.post_id == post_id)
         .order_by(models.Comment.created_at.asc())
         .all()
     )
+
+
+def like_comment(db: Session, comment_id: int, user_id: str):
+    from sqlalchemy import and_, delete, insert
+
+    existing_like = db.execute(
+        db.query(models.comment_likes)
+        .filter(
+            and_(
+                models.comment_likes.c.comment_id == comment_id,
+                models.comment_likes.c.user_id == user_id,
+            )
+        )
+        .exists()
+        .select()
+    ).scalar()
+
+    if existing_like:
+        db.execute(
+            delete(models.comment_likes).where(
+                and_(
+                    models.comment_likes.c.comment_id == comment_id,
+                    models.comment_likes.c.user_id == user_id,
+                )
+            )
+        )
+        is_liked = False
+    else:
+        db.execute(
+            insert(models.comment_likes).values(comment_id=comment_id, user_id=user_id)
+        )
+        is_liked = True
+        
+        # Notify comment owner
+        db_comment = get_comment(db, comment_id)
+        if db_comment and db_comment.user_id != user_id:
+            create_notification(
+                db, 
+                user_id=db_comment.user_id, 
+                sender_id=user_id, 
+                type="like_comment", 
+                post_id=db_comment.post_id
+            )
+
+    db.commit()
+    return is_liked
 
 
 def get_comment(db: Session, comment_id: int):
@@ -506,13 +558,6 @@ def search_users(db: Session, query: str):
 
 def search_posts(db: Session, query: str):
     return db.query(models.Post).filter(models.Post.caption.ilike(f"%{query}%")).all()
-
-
-def search_groups(db: Session, query: str):
-    return db.query(models.Group).filter(
-        (models.Group.name.ilike(f"%{query}%")) | 
-        (models.Group.description.ilike(f"%{query}%"))
-    ).all()
 
 
 def get_users_by_university(db: Session, university_name: str):
@@ -938,8 +983,6 @@ def get_platform_stats(db: Session):
     total_groups = db.query(models.Group).count()
     total_reports = db.query(models.Report).filter(models.Report.status == "pending").count()
     
-    from sqlalchemy import func
-
     # Get top universities
     top_unis = (
         db.query(models.Profile.university, func.count(models.Profile.id))
