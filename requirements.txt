@@ -62,3 +62,7 @@ python-multipart
 sqlalchemy
 psycopg2-binary
 gunicorn
+alembic
+posthog
+
+

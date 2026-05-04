@@ -1,8 +1,8 @@
 # crud.py
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from sqlalchemy import or_
+from sqlalchemy import or_, and_, case, extract, func, text
 from . import models, schemas
 from passlib.context import CryptContext
 
@@ -19,6 +19,11 @@ def get_user(db: Session, user_id: str):
 
 def get_user_by_username(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()
+
+
+def get_user_by_email(db: Session, email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
+
 
 
 def create_user(db: Session, user: schemas.UserCreate, supabase_id: str):
@@ -66,45 +71,96 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100):
     )
 
 
-def get_feed_posts(db: Session, user_id: str, skip: int = 0, limit: int = 100):
-    # Optimize: Get friend IDs directly to avoid fetching full User objects
-    friend_ids_query = (
+def get_feed_posts(db: Session, user_id: str, skip: int = 0, limit: int = 50, seed: float = None):
+    """
+    Personalized Algorithm:
+    Score = (SocialWeight + LocalWeight + EngagementWeight) / (HoursOld + 2)^1.2
+    Excludes posts seen in the last 24 hours.
+    """
+    # 1. Set seed for stable random if provided (Postgres specific)
+    if seed is not None:
+        try:
+            db.execute(text(f"SELECT setseed({seed})"))
+        except Exception as e:
+            print(f"[db] setseed error: {e}")
+
+    # 2. Get Seen Posts to exclude (last 24h)
+    since_24h = datetime.now(timezone.utc) - timedelta(days=1)
+    seen_post_ids = db.query(models.SeenPost.post_id).filter(
+        models.SeenPost.user_id == user_id,
+        models.SeenPost.seen_at >= since_24h
+    ).subquery()
+
+    # 3. Get user's context (university bonus)
+    user_profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
+
+    user_university = user_profile.university if user_profile else None
+
+    # 2. Social subqueries
+    friend_ids = (
         db.query(models.FriendRequest.sender_id)
-        .filter(
-            models.FriendRequest.receiver_id == user_id,
-            models.FriendRequest.status == "accepted",
-        )
+        .filter(models.FriendRequest.receiver_id == user_id, models.FriendRequest.status == "accepted")
         .union(
             db.query(models.FriendRequest.receiver_id).filter(
                 models.FriendRequest.sender_id == user_id,
-                models.FriendRequest.status == "accepted",
+                models.FriendRequest.status == "accepted"
             )
         )
-    )
+    ).subquery()
 
-    # Optimize: Get following IDs directly
-    following_ids_query = db.query(models.Follow.following_id).filter(
+    following_ids = db.query(models.Follow.following_id).filter(
         models.Follow.follower_id == user_id
+    ).subquery()
+
+    # 3. Dynamic weights using CASE
+    social_weight = case(
+        (models.Post.user_id == user_id, 120),
+        (models.Post.user_id.in_(friend_ids), 100),
+        (models.Post.user_id.in_(following_ids), 80),
+        else_=0
     )
 
-    # Execute queries
-    friend_ids = [f[0] for f in friend_ids_query.all()]
-    following_ids = [f[0] for f in following_ids_query.all()]
+    local_weight = case(
+        (models.Profile.university == user_university, 50),
+        else_=0
+    )
 
-    # Combine IDs (including self)
-    feed_user_ids = list(set(friend_ids + following_ids + [user_id]))
+    # engagement_weight uses the column_property likes_count
+    engagement_weight = (models.Post.likes_count * 2)
 
+    total_weight = social_weight + local_weight + engagement_weight
+    
+    # 4. Time Decay
+    now = datetime.now(timezone.utc)
+    hours_old = extract('epoch', now - models.Post.created_at) / 3600
+    decay_score = total_weight / func.pow(hours_old + 2, 1.2)
+
+    # 5. Hybrid Query: Social relevance + discovery
     return (
         db.query(models.Post)
+        .join(models.User, models.Post.user_id == models.User.id)
+        .join(models.Profile, models.User.id == models.Profile.user_id)
         .options(
-            joinedload(models.Post.user), selectinload(models.Post.likes)
-        )  # Fix N+1
-        .filter(models.Post.user_id.in_(feed_user_ids))
-        .order_by(models.Post.created_at.desc())
+            joinedload(models.Post.user),
+            selectinload(models.Post.likes)
+        )
+        .filter(~models.Post.id.in_(seen_post_ids))
+        .order_by(decay_score.desc(), func.random())
         .offset(skip)
         .limit(limit)
         .all()
     )
+
+
+def mark_post_as_seen(db: Session, user_id: str, post_id: int):
+    """Logs a post as seen by a user to prevent showing it again too soon."""
+    db_seen = models.SeenPost(user_id=user_id, post_id=post_id, seen_at=func.now())
+    db.merge(db_seen)
+    db.commit()
+    return db_seen
+
+
+
 
 
 def create_post(db: Session, post: schemas.PostCreate, user_id: str):
@@ -421,7 +477,7 @@ def register_device(db: Session, user_id: str, device: schemas.UserDeviceCreate)
 
     if existing:
         # Update last active
-        existing.last_active = datetime.datetime.utcnow()
+        existing.last_active = datetime.now(timezone.utc)
         # Update other fields
         for key, value in device.model_dump(exclude_unset=True).items():
             setattr(existing, key, value)
@@ -761,7 +817,7 @@ def get_feed_stories(db: Session, user_id: str):
     # Include self
     story_user_ids = following_ids + [user_id]
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     return (
         db.query(models.Story)
         .options(
@@ -900,3 +956,58 @@ def get_platform_stats(db: Session):
         "pending_reports": total_reports,
         "top_universities": [{"name": u[0], "count": u[1]} for u in top_unis if u[0]]
     }
+
+
+def get_suggested_users(db: Session, user_id: str, limit: int = 10):
+    """
+    Suggests users to follow based on:
+    1. Same university (Locality)
+    2. Not already followed or friends
+    3. Random sample for discovery
+    """
+    # Get user's university
+    user_profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
+    user_university = user_profile.university if user_profile else None
+
+    # Exclude already followed users
+    following_ids = db.query(models.Follow.following_id).filter(
+        models.Follow.follower_id == user_id
+    ).subquery()
+
+    # Exclude friends
+    friend_ids = (
+        db.query(models.FriendRequest.sender_id)
+        .filter(
+            models.FriendRequest.receiver_id == user_id,
+            models.FriendRequest.status == "accepted",
+        )
+        .union(
+            db.query(models.FriendRequest.receiver_id).filter(
+                models.FriendRequest.sender_id == user_id,
+                models.FriendRequest.status == "accepted",
+            )
+        )
+    ).subquery()
+
+    # Suggestion Query
+    query = (
+        db.query(models.User)
+        .join(models.Profile, models.User.id == models.Profile.user_id)
+        .filter(
+            models.User.id != user_id,
+            ~models.User.id.in_(following_ids),
+            ~models.User.id.in_(friend_ids)
+        )
+    )
+
+    if user_university:
+        # Boost users from the same university
+        query = query.order_by(
+            case((models.Profile.university == user_university, 1), else_=0).desc(),
+            func.random()
+        )
+    else:
+        query = query.order_by(func.random())
+
+    return query.limit(limit).all()
+

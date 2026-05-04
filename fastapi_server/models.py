@@ -1,4 +1,5 @@
 # models.py
+from sqlalchemy.orm import relationship, column_property
 from sqlalchemy import (
     Boolean,
     Column,
@@ -10,8 +11,10 @@ from sqlalchemy import (
     Date,
     Float,
     JSON,
+    select,
+    func
 )
-from sqlalchemy.orm import relationship
+
 from .database import Base
 import datetime
 
@@ -92,9 +95,9 @@ class Post(Base):
     user_id = Column(String, ForeignKey("users.id"))
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     image = Column(String, nullable=True)
-    video = Column(String, null__tablename__able=True)
+    video = Column(String, nullable=True)
     caption = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     user = relationship("User", back_populates="posts")
     group = relationship("Group", back_populates="posts")
@@ -102,9 +105,13 @@ class Post(Base):
         "Comment", back_populates="post", cascade="all, delete-orphan"
     )
 
-    @property
-    def likes_count(self):
-        return len(self.likes or [])
+    likes_count = column_property(
+        select(func.count(post_likes.c.user_id))
+        .where(post_likes.c.post_id == id)
+        .scalar_subquery()
+    )
+
+
 
     likes = relationship("User", secondary=post_likes, backref="liked_posts")
     dislikes = relationship("User", secondary=post_dislikes, backref="disliked_posts")
@@ -117,7 +124,7 @@ class Comment(Base):
     user_id = Column(String, ForeignKey("users.id"))
     post_id = Column(Integer, ForeignKey("posts.id"))
     content = Column(String)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     user = relationship("User", back_populates="comments")
     post = relationship("Post", back_populates="comments")
@@ -130,7 +137,7 @@ class FriendRequest(Base):
     sender_id = Column(String, ForeignKey("users.id"))
     receiver_id = Column(String, ForeignKey("users.id"))
     status = Column(String, default="pending")  # pending, accepted, rejected
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     sender = relationship("User", foreign_keys=[sender_id])
     receiver = relationship("User", foreign_keys=[receiver_id])
@@ -142,7 +149,7 @@ class Follow(Base):
     id = Column(Integer, primary_key=True, index=True)
     follower_id = Column(String, ForeignKey("users.id"))
     following_id = Column(String, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
 
 class Notification(Base):
@@ -157,7 +164,7 @@ class Notification(Base):
     post_id = Column(Integer, ForeignKey("posts.id"), nullable=True)
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     user = relationship("User", foreign_keys=[user_id], back_populates="notifications")
     sender = relationship("User", foreign_keys=[sender_id])
@@ -172,7 +179,7 @@ class Report(Base):
     comment_id = Column(Integer, ForeignKey("comments.id"), nullable=True)
     reason = Column(String)
     status = Column(String, default="pending")  # pending, resolved, dismissed
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     user = relationship("User", foreign_keys=[user_id])
     post = relationship("Post")
@@ -189,7 +196,7 @@ class Group(Base):
     cover_image = Column(String, nullable=True)
     privacy = Column(String, default="public")  # public, private, secret
     creator_id = Column(String, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
     is_active = Column(Boolean, default=True)
 
     creator = relationship("User")
@@ -213,7 +220,7 @@ class GroupMember(Base):
     group_id = Column(Integer, ForeignKey("groups.id"))
     user_id = Column(String, ForeignKey("users.id"))
     role = Column(String, default="member")  # admin, moderator, member
-    joined_at = Column(DateTime, default=datetime.datetime.utcnow)
+    joined_at = Column(DateTime, default=func.now())
 
     group = relationship("Group", back_populates="members")
     user = relationship("User")
@@ -226,7 +233,7 @@ class GroupRequest(Base):
     group_id = Column(Integer, ForeignKey("groups.id"))
     user_id = Column(String, ForeignKey("users.id"))
     status = Column(String, default="pending")  # pending, accepted, rejected
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     group = relationship("Group", back_populates="requests")
     user = relationship("User")
@@ -243,7 +250,7 @@ class UserDevice(Base):
     browser = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     fcm_token = Column(String, nullable=True)  # For Push Notifications
-    last_active = Column(DateTime, default=datetime.datetime.utcnow)
+    last_active = Column(DateTime, default=func.now())
 
     user = relationship("User", back_populates="devices")
 
@@ -257,7 +264,7 @@ class ActivityLog(Base):
     details = Column(JSON, nullable=True)  # Extra data
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     user = relationship("User", back_populates="activity_logs")
 
@@ -271,7 +278,7 @@ class LocationHistory(Base):
     longitude = Column(Float)
     city = Column(String, nullable=True)
     country = Column(String, nullable=True)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=func.now())
 
     user = relationship("User", back_populates="location_history")
 
@@ -283,7 +290,7 @@ class SearchHistory(Base):
     user_id = Column(String, ForeignKey("users.id"))
     query = Column(String)
     clicked_result_id = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     user = relationship("User", back_populates="search_history")
 
@@ -293,7 +300,7 @@ class Conversation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=True)  # For group chats
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     participants = relationship(
         "User", secondary="conversation_participants", backref="conversations"
@@ -310,7 +317,7 @@ class Message(Base):
     content = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
     video_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
     is_read = Column(Boolean, default=False)
 
     conversation = relationship("Conversation", back_populates="messages")
@@ -324,10 +331,10 @@ class Story(Base):
     user_id = Column(String, ForeignKey("users.id"))
     image_url = Column(String, nullable=True)
     content = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
     expires_at = Column(
         DateTime,
-        default=lambda: datetime.datetime.utcnow() + datetime.timedelta(days=1),
+        default=lambda: datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1),
     )
 
     user = relationship("User", backref="stories")
@@ -345,7 +352,7 @@ class StoryView(Base):
     id = Column(Integer, primary_key=True, index=True)
     story_id = Column(Integer, ForeignKey("stories.id"))
     user_id = Column(String, ForeignKey("users.id"))
-    viewed_at = Column(DateTime, default=datetime.datetime.utcnow)
+    viewed_at = Column(DateTime, default=func.now())
 
     story = relationship("Story", back_populates="views")
     user = relationship("User")
@@ -357,7 +364,19 @@ class StoryLike(Base):
     id = Column(Integer, primary_key=True, index=True)
     story_id = Column(Integer, ForeignKey("stories.id"))
     user_id = Column(String, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=func.now())
 
     story = relationship("Story", back_populates="likes")
     user = relationship("User")
+
+
+class SeenPost(Base):
+    __tablename__ = "seen_posts"
+
+    user_id = Column(String, ForeignKey("users.id"), primary_key=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), primary_key=True)
+    seen_at = Column(DateTime, default=func.now())
+
+    user = relationship("User")
+    post = relationship("Post")
+

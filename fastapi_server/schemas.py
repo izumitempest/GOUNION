@@ -14,6 +14,14 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class StatusMessage(BaseModel):
+    status: str
+    message: Optional[str] = None
+
+
+class LikeResponse(BaseModel):
+    status: str
+    likes_count: int
 
 class ProfileBase(BaseModel):
     bio: Optional[str] = None
