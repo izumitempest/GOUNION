@@ -11,7 +11,9 @@ from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
-from . import migrate
+from typing import Optional
+from urllib.parse import quote
+from . import migrate, schemas
 from .routers import auth, users, posts, groups, messages, admin, media, stories
 
 # Logging configuration
