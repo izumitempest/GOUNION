@@ -1,14 +1,14 @@
 import React, { useEffect, useRef } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { CreatePost } from "../components/feed/CreatePost";
 import { PostCard } from "../components/feed/PostCard";
 import { StatusCircles } from "../components/feed/StatusCircles";
 import { Skeleton } from "../components/ui/Skeleton";
 import { api } from "../services/api";
 import { Post } from "../types";
-import { motion } from "framer-motion";
+import { useAuthStore } from "../store";
 
 export const Dashboard = () => {
+  const { user: currentUser } = useAuthStore();
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     useInfiniteQuery({
       queryKey: ["feed"],
@@ -49,7 +49,10 @@ export const Dashboard = () => {
     };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const posts = data?.pages.flat() || [];
+  const uniquePosts = Array.from(
+    new Map((data?.pages.flat() || []).map((post: Post) => [post.id, post])).values(),
+  );
+  const posts = uniquePosts;
 
   return (
     <div className="max-w-2xl mx-auto w-full pb-24 pt-8">
@@ -60,8 +63,6 @@ export const Dashboard = () => {
       </div>
 
       <div className="space-y-6">
-        <CreatePost />
-
         {status === "pending" ? (
           <div className="space-y-6">
             <Skeleton className="h-64 w-full rounded-2xl" />
@@ -74,7 +75,7 @@ export const Dashboard = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            {posts.map((post: Post, index: number) => (
+            {posts.map((post: Post) => (
               <PostCard key={post.id} post={post} />
             ))}
 

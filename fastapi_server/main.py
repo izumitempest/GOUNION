@@ -8,7 +8,7 @@ import os
 load_dotenv()
 
 from sqlalchemy.orm import Session, joinedload
-from . import crud, models, schemas, migrate
+from . import crud, models, schemas
 from .database import SessionLocal, engine
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -32,16 +32,6 @@ app = FastAPI()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Run migrations at startup
-@app.on_event("startup")
-async def startup_event():
-    logger.info("[startup] Verifying database schema...")
-    try:
-        migrate.apply_migration()
-        logger.info("[startup] Schema verification complete.")
-    except Exception as e:
-        logger.error(f"[startup] Migration system error: {e}")
 
 # Global Exception Handler to catch 500s and ensure CORS headers
 @app.exception_handler(Exception)
@@ -81,7 +71,7 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
 # We handle that by always including the frontend origins explicitly.
 _raw_origins = os.getenv(
     "ALLOWED_ORIGINS",
-    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,https://gounion-download.vercel.app,https://localhost,capacitor://localhost,http://localhost"
+    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,https://gounion-download.vercel.app"
 )
 # Parse origins and ensure no trailing slashes, as origins must be exact
 ALLOWED_ORIGINS = []
@@ -90,9 +80,24 @@ for o in _raw_origins.split(","):
     if clean_o:
         ALLOWED_ORIGINS.append(clean_o)
 
+# Always include mobile webview origins needed by Android APK builds,
+# even when ALLOWED_ORIGINS is explicitly set in environment variables.
+REQUIRED_MOBILE_ORIGINS = [
+    "http://localhost",
+    "https://localhost",
+    "capacitor://localhost",
+    "ionic://localhost",
+    "http://10.0.2.2",
+    "https://10.0.2.2",
+]
+for origin in REQUIRED_MOBILE_ORIGINS:
+    if origin not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(origin)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"^(https?|capacitor|ionic)://localhost(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -248,16 +253,7 @@ async def get_current_user(
                 detail="Your account has been suspended."
             )
             
-        # Sync verification status from Supabase to local DB
-        email_confirmed_at = getattr(user_response.user, 'email_confirmed_at', None)
-        if email_confirmed_at and not getattr(user, 'is_verified', False):
-             user.is_verified = True
-             db.add(user)
-             db.commit()
-             db.refresh(user)
-             logger.info(f"[auth] User {user.username} marked as verified in local DB.")
-
-        logger.info(f"[auth] User {user.username} loaded successfully (Verified: {getattr(user, 'is_verified', False)}).")
+        logger.info(f"[auth] User {user.username} loaded successfully.")
         return user
     except HTTPException:
         raise
@@ -428,7 +424,7 @@ async def forgot_password(body: schemas.ForgotPasswordRequest):
     """Sends a password reset email via Supabase Auth."""
     try:
         frontend_url = os.getenv("FRONTEND_URL", "https://gounion-frontend.onrender.com")
-        redirect_url = f"{frontend_url}/#/reset-password"
+        redirect_url = f"{frontend_url}/reset-password"
         await asyncio.to_thread(
             supabase.auth.reset_password_for_email,
             body.email,
@@ -446,31 +442,15 @@ async def reset_password(body: schemas.ResetPasswordRequest):
     Verifies the access_token from the Supabase reset email redirect and updates the user's password.
     """
     try:
-        import httpx
-        import os
-        supabase_url = os.environ.get("SUPABASE_URL")
-        supabase_key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY")
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.put(
-                f"{supabase_url}/auth/v1/user",
-                headers={
-                    "Authorization": f"Bearer {body.token}",
-                    "apikey": supabase_key,
-                },
-                json={"password": body.new_password}
-            )
-            
-            if response.status_code >= 400:
-                error_detail = "Invalid or expired reset token."
-                try:
-                    error_data = response.json()
-                    error_detail = error_data.get("msg") or error_data.get("message") or error_detail
-                except:
-                    pass
-                print(f"Reset password error from Supabase: {response.text}")
-                raise HTTPException(status_code=400, detail=error_detail)
-                
+        user_response = await asyncio.to_thread(supabase.auth.get_user, body.token)
+        if not user_response.user:
+            raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+        await asyncio.to_thread(
+            supabase.auth.admin.update_user_by_id,
+            user_response.user.id,
+            {"password": body.new_password},
+        )
         return {"message": "Password updated successfully. You can now log in."}
     except HTTPException:
         raise
@@ -480,48 +460,29 @@ async def reset_password(body: schemas.ResetPasswordRequest):
 
 
 @app.post("/users/", response_model=schemas.User)
-async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # Check if username exists locally
+    db_user = crud.get_user_by_username(db, username=user.username)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+
     try:
-        # Check if username exists locally
-        db_user = crud.get_user_by_username(db, username=user.username)
-        if db_user:
-            raise HTTPException(status_code=400, detail="Username already registered")
-
-        # Check if email exists locally (prevent psycopg2 IntegrityError later)
-        if hasattr(crud, "get_user_by_email"):
-            db_email = crud.get_user_by_email(db, email=user.email)
-            if db_email:
-                raise HTTPException(status_code=400, detail="An account with this email already exists.")
-
         # Sign up with Supabase
-        auth_response = await asyncio.to_thread(
-            supabase.auth.sign_up,
+        auth_response = supabase.auth.sign_up(
             {
                 "email": user.email,
                 "password": user.password,
             }
         )
-        
         if not auth_response.user:
-            raise HTTPException(status_code=400, detail="Registration failed. Please try again.")
+            raise HTTPException(status_code=400, detail="Supabase registration failed")
 
         # Create user in our DB using Supabase ID
         return crud.create_user(db=db, user=user, supabase_id=auth_response.user.id)
 
-    except HTTPException:
-        raise
     except Exception as e:
-        error_msg = str(e)
-        print(f"REGISTRATION ERROR: {error_msg}")
-        
-        if "already registered" in error_msg.lower() or "already exists" in error_msg.lower():
-            detail = "An account with this email or username already exists."
-        elif "identity_already_exists" in error_msg:
-             detail = "This email is already linked to another account."
-        else:
-            detail = "Registration service temporarily unavailable. Please try again later."
-            
-        raise HTTPException(status_code=400, detail=detail)
+        # If Supabase fails (e.g. email taken), return error
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/users/me/", response_model=schemas.User)
@@ -575,10 +536,17 @@ def read_posts(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 def read_feed(
     skip: int = 0,
     limit: int = 100,
+    reels: bool = False,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return crud.get_feed_posts(db, user_id=current_user.id, skip=skip, limit=limit)
+    return crud.get_feed_posts(
+        db,
+        user_id=current_user.id,
+        skip=skip,
+        limit=limit,
+        reels=reels,
+    )
 
 
 @app.post("/posts/", response_model=schemas.Post)
@@ -846,11 +814,6 @@ def search_users(q: str, db: Session = Depends(get_db)):
 @app.get("/search/posts", response_model=List[schemas.Post])
 def search_posts(q: str, db: Session = Depends(get_db)):
     return crud.search_posts(db, query=q)
-
-
-@app.get("/search/groups", response_model=List[schemas.Group])
-def search_groups(q: str, db: Session = Depends(get_db)):
-    return crud.search_groups(db, query=q)
 
 
 @app.get("/notifications/", response_model=List[schemas.Notification])
@@ -1240,6 +1203,7 @@ def create_conversation(
 
 
 from fastapi.responses import RedirectResponse
+from urllib.parse import quote
 
 
 # Stories
@@ -1302,4 +1266,53 @@ async def health_check():
             "has_supabase_url": bool(os.getenv("SUPABASE_URL")),
             "has_supabase_key": bool(os.getenv("SUPABASE_SERVICE_KEY")),
         }
+    }
+
+
+def _parse_version(version: str) -> tuple:
+    """Convert dot-separated versions like 2026.04.13.1 into comparable tuples."""
+    if not version:
+        return (0,)
+    normalized = version.replace("-", ".").replace("_", ".")
+    parts = []
+    for piece in normalized.split("."):
+        if piece.isdigit():
+            parts.append(int(piece))
+        else:
+            digits = "".join(ch for ch in piece if ch.isdigit())
+            parts.append(int(digits) if digits else 0)
+    return tuple(parts or [0])
+
+
+@app.get("/mobile/version", response_model=schemas.MobileVersionInfo)
+async def mobile_version(current_version: Optional[str] = None):
+    """
+    Returns mobile update metadata.
+    - latest_version: latest published APK
+    - min_supported_version: minimum app version allowed to continue
+    - force_update: true when current version is below minimum supported
+    """
+    latest_version = os.getenv("MOBILE_LATEST_VERSION", "2026.04.14.1")
+    min_supported_version = os.getenv("MOBILE_MIN_SUPPORTED_VERSION", latest_version)
+    apk_url = os.getenv(
+        "MOBILE_APK_URL",
+        f"https://gounion-download.vercel.app/apk/gounion-{quote(latest_version)}.apk?v={quote(latest_version)}",
+    )
+    release_notes = os.getenv("MOBILE_RELEASE_NOTES")
+
+    current_parsed = _parse_version(current_version or "")
+    latest_parsed = _parse_version(latest_version)
+    min_supported_parsed = _parse_version(min_supported_version)
+
+    has_update = bool(current_version) and current_parsed < latest_parsed
+    force_update = bool(current_version) and current_parsed < min_supported_parsed
+
+    return {
+        "latest_version": latest_version,
+        "min_supported_version": min_supported_version,
+        "apk_url": apk_url,
+        "force_update": force_update,
+        "has_update": has_update,
+        "current_version": current_version,
+        "release_notes": release_notes,
     }

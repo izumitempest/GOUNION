@@ -2,7 +2,7 @@
 from datetime import datetime
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from . import models, schemas
 from passlib.context import CryptContext
 
@@ -66,45 +66,26 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100):
     )
 
 
-def get_feed_posts(db: Session, user_id: str, skip: int = 0, limit: int = 100):
-    # Optimize: Get friend IDs directly to avoid fetching full User objects
-    friend_ids_query = (
-        db.query(models.FriendRequest.sender_id)
-        .filter(
-            models.FriendRequest.receiver_id == user_id,
-            models.FriendRequest.status == "accepted",
-        )
-        .union(
-            db.query(models.FriendRequest.receiver_id).filter(
-                models.FriendRequest.sender_id == user_id,
-                models.FriendRequest.status == "accepted",
-            )
-        )
-    )
-
-    # Optimize: Get following IDs directly
-    following_ids_query = db.query(models.Follow.following_id).filter(
-        models.Follow.follower_id == user_id
-    )
-
-    # Execute queries
-    friend_ids = [f[0] for f in friend_ids_query.all()]
-    following_ids = [f[0] for f in following_ids_query.all()]
-
-    # Combine IDs (including self)
-    feed_user_ids = list(set(friend_ids + following_ids + [user_id]))
-
-    return (
+def get_feed_posts(
+    db: Session,
+    user_id: str,
+    skip: int = 0,
+    limit: int = 100,
+    reels: bool = False,
+):
+    """
+    Randomized feed that excludes the current user's own posts.
+    When reels=True, only video posts are returned.
+    """
+    query = (
         db.query(models.Post)
-        .options(
-            joinedload(models.Post.user), selectinload(models.Post.likes)
-        )  # Fix N+1
-        .filter(models.Post.user_id.in_(feed_user_ids))
-        .order_by(models.Post.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
+        .options(joinedload(models.Post.user), selectinload(models.Post.likes))
     )
+
+    if reels:
+        query = query.filter(models.Post.video.isnot(None))
+
+    return query.order_by(func.random()).offset(skip).limit(limit).all()
 
 
 def create_post(db: Session, post: schemas.PostCreate, user_id: str):
@@ -450,13 +431,6 @@ def search_users(db: Session, query: str):
 
 def search_posts(db: Session, query: str):
     return db.query(models.Post).filter(models.Post.caption.ilike(f"%{query}%")).all()
-
-
-def search_groups(db: Session, query: str):
-    return db.query(models.Group).filter(
-        (models.Group.name.ilike(f"%{query}%")) | 
-        (models.Group.description.ilike(f"%{query}%"))
-    ).all()
 
 
 def get_users_by_university(db: Session, university_name: str):
@@ -882,8 +856,6 @@ def get_platform_stats(db: Session):
     total_groups = db.query(models.Group).count()
     total_reports = db.query(models.Report).filter(models.Report.status == "pending").count()
     
-    from sqlalchemy import func
-
     # Get top universities
     top_unis = (
         db.query(models.Profile.university, func.count(models.Profile.id))

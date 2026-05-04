@@ -15,6 +15,7 @@ import { useAuthStore } from "../store";
 import { motion, AnimatePresence } from "framer-motion";
 import { EditProfileModal } from "../components/profile/EditProfileModal";
 import { PostCard } from "../components/feed/PostCard";
+import { CreatePost } from "../components/feed/CreatePost";
 import { api } from "../services/api";
 
 export const Profile = () => {
@@ -182,13 +183,12 @@ export const Profile = () => {
             </button>
           ) : (
             <>
-              <button 
-                onClick={() => user?.id && chatMutation.mutate(user.id)}
-                disabled={chatMutation.isPending}
-                className="p-2.5 bg-black/50 backdrop-blur-md border border-white/10 text-white rounded-xl hover:bg-black/70 transition-colors disabled:opacity-50"
+              <Link 
+                to={`/messages?userId=${user.id}`}
+                className="p-2.5 bg-black/50 backdrop-blur-md border border-white/10 text-white rounded-xl hover:bg-black/70 transition-colors"
               >
                 <MessageSquare size={20} />
-              </button>
+              </Link>
               <button
                 onClick={() => followMutation.mutate()}
                 className={`px-6 py-2 rounded-xl text-sm font-medium transition-colors ${
@@ -266,6 +266,9 @@ export const Profile = () => {
                 <Skeleton className="h-64 rounded-3xl w-full" />
               ) : (
                 <div className="space-y-6 text-white">
+                  {activeTab === "posts" && isOwnProfile && (
+                    <CreatePost profileUsername={username} />
+                  )}
                   {(activeTab === "media" ? posts?.filter((p: any) => p.imageUrl) : posts)?.map((post: any) => (
                     <PostCard key={post.id} post={post} />
                   ))}

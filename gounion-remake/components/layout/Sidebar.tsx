@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink, Link, useLocation } from "react-router-dom";
+import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Compass,
@@ -30,6 +30,7 @@ const NAV_ITEMS = [
 export const Sidebar = () => {
   const { user, logout } = useAuthStore();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const { data: unreadData } = useQuery({
     queryKey: ['notifications-unread'],
@@ -166,7 +167,10 @@ export const Sidebar = () => {
               <Settings className="w-4 h-4" />
             </Link>
             <button
-              onClick={logout}
+              onClick={() => {
+                logout();
+                navigate("/login");
+              }}
               className="text-white/50 hover:text-red-400 transition-colors p-1"
             >
               <LogOut className="w-4 h-4" />

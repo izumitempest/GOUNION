@@ -47,7 +47,6 @@ class User(Base):
     # hashed_password removed - handled by Supabase Auth
     is_active = Column(Boolean, default=True)
     role = Column(String, default="user")  # 'user', 'moderator', 'admin'
-    is_verified = Column(Boolean, default=False)
 
 
     profile = relationship("Profile", back_populates="user", uselist=False)
@@ -92,7 +91,7 @@ class Post(Base):
     user_id = Column(String, ForeignKey("users.id"))
     group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
     image = Column(String, nullable=True)
-    video = Column(String, null__tablename__able=True)
+    video = Column(String, nullable=True)
     caption = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

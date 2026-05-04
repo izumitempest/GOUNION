@@ -7,24 +7,31 @@ import { api } from "../services/api";
 /**
  * Supabase appends the recovery token to the URL hash fragment when
  * redirecting after a password reset email click. It looks like:
+ *   https://yourapp.com/reset-password#access_token=XXX&type=recovery&...
+ *
+ * Legacy links from HashRouter may still look like:
  *   https://yourapp.com/#/reset-password#access_token=XXX&type=recovery&...
  *
- * We parse it out from window.location.hash.
+ * We support both formats.
  */
 function getTokenFromUrl(): string | null {
-  // Supabase appends params after the route hash, so the full hash might be:
-  // #/reset-password#access_token=...&type=recovery
-  // We join the full href and parse search params from the second hash fragment.
-  const fullHash = window.location.hash; // e.g. #/reset-password#access_token=...
-  const secondHash = fullHash.indexOf('#', 1);
-  if (secondHash === -1) {
-    // Try query params as fallback
-    const params = new URLSearchParams(window.location.search);
-    return params.get('access_token');
+  // Preferred format: /reset-password#access_token=...
+  if (window.location.hash.startsWith("#access_token=")) {
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    return params.get("access_token");
   }
-  const paramStr = fullHash.slice(secondHash + 1);
-  const params = new URLSearchParams(paramStr);
-  return params.get('access_token');
+
+  // Legacy format: #/reset-password#access_token=...
+  const fullHash = window.location.hash;
+  const secondHash = fullHash.indexOf("#", 1);
+  if (secondHash !== -1) {
+    const params = new URLSearchParams(fullHash.slice(secondHash + 1));
+    return params.get("access_token");
+  }
+
+  // Final fallback in case token is provided via query params.
+  const queryParams = new URLSearchParams(window.location.search);
+  return queryParams.get("access_token");
 }
 
 export const ResetPassword = () => {

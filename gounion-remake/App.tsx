@@ -43,18 +43,21 @@ const queryClient = new QueryClient({
 
 // Layout Component to wrap authenticated routes
 const AppLayout = ({ children }: { children?: React.ReactNode }) => {
+  const location = useLocation();
+  const isDiscover = location.pathname === '/discover';
+
   return (
     <div className="flex h-screen bg-[#030303] text-white overflow-hidden selection:bg-white/20 relative">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 relative">
-        <main className="flex-1 overflow-y-auto hide-scrollbar md:pl-64 lg:pr-80 pb-32">
-        <div className="px-4 py-6 md:px-8 max-w-5xl mx-auto">
-          {children}
-        </div>
-        </main>
-        <div className="fixed bottom-0 left-0 right-0 z-[100] md:left-64 lg:right-80">
+        <div className="fixed top-0 right-0 left-0 md:left-64 lg:right-80 z-[100]">
           <TopNav />
         </div>
+        <main className={`flex-1 overflow-y-auto hide-scrollbar md:pl-64 lg:pr-80 ${isDiscover ? 'pb-0' : 'pb-28'} md:pb-0 pt-16`}>
+          <div className="px-4 py-6 md:px-8 max-w-5xl mx-auto">
+            {children}
+          </div>
+        </main>
       </div>
       <RightSidebar />
       <MobileNav />
@@ -141,7 +144,6 @@ const MobileUpdateModal = ({
               Later
             </button>
           )}
-        </div>
       </div>
     </div>
   );

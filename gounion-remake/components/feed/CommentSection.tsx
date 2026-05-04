@@ -91,8 +91,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
       setContent("");
       queryClient.invalidateQueries({ queryKey: ["comments", postId] });
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["discover-reels"] });
       if (groupId) {
         queryClient.invalidateQueries({ queryKey: ["group-posts", groupId] });
+      }
+      if (authorUsername) {
+        queryClient.invalidateQueries({ queryKey: ["profile-posts", authorUsername] });
       }
     },
   });

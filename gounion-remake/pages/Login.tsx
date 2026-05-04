@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Mail,
@@ -19,8 +20,6 @@ export const Login = () => {
   const [loading, setLoading] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [verificationSuccess, setVerificationSuccess] = useState(false);
-  const [emailForVerification, setEmailForVerification] = useState("");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,22 +31,16 @@ export const Login = () => {
     setLoading(true);
     setError(null);
     try {
-      if (isSignup) {
-        await api.auth.signup({ username, email, password, fullName });
-        setEmailForVerification(email);
-        setVerificationSuccess(true);
-      } else {
-        const response = await api.auth.login({ email, password });
-        login(response.user, response.access_token);
-      }
+      const response = await (isSignup
+        ? api.auth.signup({ username, email, password, fullName })
+        : api.auth.login({ email, password }));
+      login(response.user, response.access_token);
     } catch (error: any) {
       console.error(error);
-      const detail = error.response?.data?.detail;
-      if (typeof detail === "string") {
-        setError(detail);
-      } else {
-        setError("Authentication failed. Please try again.");
-      }
+      setError(
+        error.response?.data?.detail ||
+          "Authentication failed. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -84,152 +77,127 @@ export const Login = () => {
             </p>
           </div>
 
-          {verificationSuccess ? (
-            <div className="text-center py-8">
-              <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-8">
-                <Mail className="text-primary w-10 h-10" />
-              </div>
-              <h2 className="font-serif text-3xl font-bold text-white mb-4">
-                Verify Identity
-              </h2>
-              <p className="text-zinc-500 leading-relaxed max-w-xs mx-auto mb-10">
-                A secure initialization link has been sent to{" "}
-                <span className="text-white font-bold">{emailForVerification}</span>.
-                Please check your inbox.
-              </p>
-              <button
-                onClick={() => {
-                  setVerificationSuccess(false);
-                  setIsSignup(false);
-                }}
-                className="w-full h-14 bg-white/5 border border-white/10 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-white/10 transition-all"
-              >
-                Back to Authentication
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <AnimatePresence mode="wait">
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-500 text-xs font-bold flex items-center gap-3 overflow-hidden"
-                  >
-                    <div className="w-1 h-1 rounded-full bg-red-500 animate-ping" />
-                    {error}
-                  </motion.div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-red-500 text-xs font-bold flex items-center gap-3 overflow-hidden"
+                >
+                  <div className="w-1 h-1 rounded-full bg-red-500 animate-ping" />
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="space-y-4">
+              <AnimatePresence>
+                {isSignup && (
+                  <>
+                    <motion.div
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="space-y-2"
+                    >
+                      <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Full Name</label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/30 transition-all font-medium"
+                        placeholder="Alex Rivera"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                      />
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="space-y-2"
+                    >
+                      <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Username</label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/30 transition-all font-medium"
+                        placeholder="arivera"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                      />
+                    </motion.div>
+                  </>
                 )}
               </AnimatePresence>
 
-              <div className="space-y-4">
-                <AnimatePresence>
-                  {isSignup && (
-                    <>
-                      <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="space-y-2"
-                      >
-                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Full Name</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/30 transition-all font-medium"
-                          placeholder="Alex Rivera"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                        />
-                      </motion.div>
-                      <motion.div
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="space-y-2"
-                      >
-                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Username</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/30 transition-all font-medium"
-                          placeholder="arivera"
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                        />
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Student Email</label>
-                  <input
-                    type="email"
-                    required
-                    className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/30 transition-all font-medium"
-                    placeholder="student@university.edu"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center ml-1">
-                    <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Secret Key</label>
-                    {!isSignup && (
-                      <Link to="/forgot-password" size={2} className="text-[10px] font-bold text-zinc-600 hover:text-primary transition-colors uppercase tracking-widest">
-                        Lost info?
-                      </Link>
-                    )}
-                  </div>
-                  <input
-                    type="password"
-                    required
-                    className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/30 transition-all font-medium"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest ml-1">Student Email</label>
+                <input
+                  type="email"
+                  required
+                  className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/30 transition-all font-medium"
+                  placeholder="student@university.edu"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
 
+              <div className="space-y-2">
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Secret Key</label>
+                  {!isSignup && (
+                    <Link to="/forgot-password" size={2} className="text-[10px] font-bold text-zinc-600 hover:text-primary transition-colors uppercase tracking-widest">
+                      Lost info?
+                    </Link>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  required
+                  className="w-full bg-white/5 border border-white/5 rounded-xl py-4 px-6 text-white placeholder:text-zinc-700 focus:outline-none focus:border-primary/30 transition-all font-medium"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-14 bg-white text-black rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-[0.98]"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+              ) : (
+                <>
+                  <span>{isSignup ? "Initialize Profile" : "Authenticate Account"}</span>
+                  <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+
+            <div className="text-center pt-4">
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-14 bg-white text-black rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-[0.98]"
+                type="button"
+                onClick={() => {
+                  setIsSignup(!isSignup);
+                  setError(null);
+                }}
+                className="text-sm text-zinc-500 hover:text-white transition-colors"
               >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                {isSignup ? (
+                  <span className="flex items-center gap-2 justify-center">
+                    Already a member? <span className="text-white font-bold">Sign In</span>
+                  </span>
                 ) : (
-                  <>
-                    <span>{isSignup ? "Initialize Profile" : "Authenticate Account"}</span>
-                    <ArrowRight size={16} />
-                  </>
+                  <span className="flex items-center gap-2 justify-center">
+                    New to the network? <span className="text-white font-bold">Register Now</span>
+                  </span>
                 )}
               </button>
-
-              <div className="text-center pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignup(!isSignup);
-                    setError(null);
-                  }}
-                  className="text-sm text-zinc-500 hover:text-white transition-colors"
-                >
-                  {isSignup ? (
-                    <span className="flex items-center gap-2 justify-center">
-                      Already a member? <span className="text-white font-bold">Sign In</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2 justify-center">
-                      New to the network? <span className="text-white font-bold">Register Now</span>
-                    </span>
-                  )}
-                </button>
-              </div>
-            </form>
-          )}
+            </div>
+          </form>
         </div>
 
         <div className="mt-12 flex justify-center gap-12 text-[#222]">
@@ -242,6 +210,16 @@ export const Login = () => {
             <span className="text-[10px] font-black uppercase tracking-widest opacity-30">Encrypted</span>
           </div>
         </div>
+        {!Capacitor.isNativePlatform() && (
+          <div className="mt-6 text-center">
+            <Link
+              to="/download"
+              className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 hover:text-primary transition-colors"
+            >
+              Download Android APK
+            </Link>
+          </div>
+        )}
       </motion.div>
     </div>
   );

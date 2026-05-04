@@ -4,7 +4,11 @@ import { useAuthStore } from "../../store";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../services/api";
 
-export const CreatePost = () => {
+type CreatePostProps = {
+  profileUsername?: string;
+};
+
+export const CreatePost = ({ profileUsername }: CreatePostProps) => {
   const { user } = useAuthStore();
   const [content, setContent] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -15,15 +19,12 @@ export const CreatePost = () => {
   const mutation = useMutation({
     mutationFn: (data: { caption: string; image?: File | null }) =>
       api.posts.create(data),
-    onSuccess: (newPost) => {
-      queryClient.setQueryData(["feed"], (old: any) => {
-        if (!old || !old.pages) {
-          return { pages: [[newPost]], pageParams: [0] };
-        }
-        const newPages = [...old.pages];
-        newPages[0] = [newPost, ...newPages[0]];
-        return { ...old, pages: newPages };
-      });
+    onSuccess: () => {
+      const ownerUsername = profileUsername || user?.username;
+      if (ownerUsername) {
+        queryClient.invalidateQueries({ queryKey: ["profile-posts", ownerUsername] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["discover-reels"] });
       handleRemoveFile();
       setContent("");
     },
@@ -64,7 +65,7 @@ export const CreatePost = () => {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="What's happening on campus?"
+            placeholder="Share something from your profile..."
             className="w-full bg-transparent border-none text-white placeholder:text-white/40 focus:outline-none focus:ring-0 text-lg mt-1 resize-none h-12"
           />
 

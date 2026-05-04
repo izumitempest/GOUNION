@@ -1,7 +1,7 @@
 import React from "react";
 import { Search, Bell, Menu } from "lucide-react";
 import { useAuthStore, useUIStore } from "../../store";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../services/api";
 import { NotificationDropdown } from "./NotificationDropdown";
@@ -24,8 +24,11 @@ export const TopNav = () => {
 
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
+  const location = useLocation();
+  const isDiscover = location.pathname === "/discover";
+
   return (
-    <header className="w-full h-16 bg-[#0a0a0c]/80 backdrop-blur-xl border-t border-white/5 z-[100]">
+    <header className="flex sticky top-0 w-full h-16 bg-[#0a0a0c]/80 backdrop-blur-xl border-b border-white/5 z-[100]">
       <div className="max-w-[1600px] mx-auto h-full flex items-center justify-between px-4 md:px-6 relative">
         <div className="flex items-center gap-4">
           <button

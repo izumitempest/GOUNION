@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../services/api";
 import { PostCard } from "../components/feed/PostCard";
 import { Skeleton } from "../components/ui/Skeleton";
+import { authStorage } from "../utils/persistentStorage";
 
 export const GroupDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +38,7 @@ export const GroupDetails = () => {
     "feed",
   );
 
-  const currentUserId = sessionStorage.getItem("user_id");
+  const currentUserId = authStorage.getItem("user_id");
 
   const { data: group, isLoading: isGroupLoading } = useQuery({
     queryKey: ["group", id],
