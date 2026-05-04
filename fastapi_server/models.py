@@ -30,6 +30,13 @@ post_dislikes = Table(
     Column("post_id", Integer, ForeignKey("posts.id")),
 )
 
+comment_likes = Table(
+    "comment_likes",
+    Base.metadata,
+    Column("user_id", String, ForeignKey("users.id")),
+    Column("comment_id", Integer, ForeignKey("comments.id")),
+)
+
 conversation_participants = Table(
     "conversation_participants",
     Base.metadata,
@@ -120,6 +127,11 @@ class Comment(Base):
 
     user = relationship("User", back_populates="comments")
     post = relationship("Post", back_populates="comments")
+    likes = relationship("User", secondary=comment_likes, backref="liked_comments")
+
+    @property
+    def likes_count(self):
+        return len(self.likes or [])
 
 
 class FriendRequest(Base):

@@ -53,7 +53,7 @@ const AppLayout = ({ children }: { children?: React.ReactNode }) => {
         <div className="fixed top-0 right-0 left-0 md:left-64 lg:right-80 z-[100]">
           <TopNav />
         </div>
-        <main className={`flex-1 overflow-y-auto hide-scrollbar md:pl-64 lg:pr-80 ${isDiscover ? 'pb-0' : 'pb-28'} md:pb-0 pt-16`}>
+        <main className={`flex-1 overflow-y-auto hide-scrollbar md:pl-64 lg:pr-80 ${isDiscover ? 'pb-0' : 'pb-6'} md:pb-0 pt-40 md:pt-16`}>
           <div className="px-4 py-6 md:px-8 max-w-5xl mx-auto">
             {children}
           </div>
@@ -201,6 +201,24 @@ const AppRoutes = () => {
   const defaultPublicRoute = isNativeApp || hasDownloadedApk ? "/login" : "/download";
 
   useEffect(() => {
+    const checkAuth = async () => {
+      const refreshToken = authStorage.getItem("refresh_token");
+      const accessToken = authStorage.getItem("access_token");
+      
+      if (refreshToken && !accessToken) {
+        try {
+          await api.auth.refresh(refreshToken);
+          // Refresh handles store updates via interceptors/logic if set up, 
+          // but let's ensure we reload to pick up new state
+          window.location.reload();
+        } catch (e) {
+          console.error("Startup refresh failed", e);
+        }
+      }
+    };
+    
+    void checkAuth();
+    
     const timer = window.setTimeout(() => {
       setShowStartupSplash(false);
     }, 850);

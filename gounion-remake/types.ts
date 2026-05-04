@@ -11,6 +11,7 @@ export interface User {
   isFollowing?: boolean;
   role: 'user' | 'moderator' | 'admin';
   isActive?: boolean;
+  totalLikes?: number;
 }
 
 export interface Post {
@@ -23,6 +24,17 @@ export interface Post {
   timestamp: string;
   isLiked?: boolean;
   groupId?: string;
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  postId: string;
+  content: string;
+  createdAt: string;
+  user: User;
+  likesCount: number;
+  isLiked?: boolean;
 }
 
 export interface Group {

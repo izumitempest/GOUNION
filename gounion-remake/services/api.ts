@@ -25,12 +25,31 @@ apiClient.interceptors.request.use((config) => {
 // Add interceptor to handle unauthorized/suspended responses
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
     const isSuspended = error.response?.status === 403 && error.response?.data?.detail === "Your account has been suspended.";
     const isUnauthorized = error.response?.status === 401;
 
+    if (isUnauthorized && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const refreshToken = authStorage.getItem('refresh_token');
+      
+      if (refreshToken) {
+        try {
+          const res = await api.auth.refresh(refreshToken);
+          const newAccessToken = res.access_token;
+          apiClient.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+          originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+          return apiClient(originalRequest);
+        } catch (refreshError) {
+          // If refresh fails, fall through to logout
+          console.error("Session refresh failed", refreshError);
+        }
+      }
+    }
+
     if (isSuspended || isUnauthorized) {
-      useAuthStore.getState().logout(); // Aggressively flush Zustand and Session memory
+      useAuthStore.getState().logout();
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -61,6 +80,7 @@ export const transformUser = (user: any) => {
     isFollowing: false,
     role: user.role || 'user',
     isActive: user.is_active ?? true,
+    totalLikes: user.total_likes ?? 0,
   };
 };
 
@@ -117,7 +137,9 @@ export const api = {
       
       const res = await apiClient.post('/token', formData);
       const accessToken = res.data.access_token;
+      const refreshToken = res.data.refresh_token;
       authStorage.setItem('access_token', accessToken);
+      authStorage.setItem('refresh_token', refreshToken);
       
       const userRes = await apiClient.get('/users/me/');
       const transformedUser = transformUser(userRes.data);
@@ -146,6 +168,13 @@ export const api = {
     },
     resetPassword: async (token: string, new_password: string) => {
       const res = await apiClient.post('/auth/reset-password', { token, new_password });
+      return res.data;
+    },
+    refresh: async (refreshToken: string) => {
+      const res = await apiClient.post('/auth/refresh', { refresh_token: refreshToken });
+      const { access_token, refresh_token } = res.data;
+      authStorage.setItem('access_token', access_token);
+      authStorage.setItem('refresh_token', refresh_token);
       return res.data;
     },
   },
@@ -186,6 +215,10 @@ export const api = {
     createComment: async (id: string, content: string) => {
       const res = await apiClient.post(`/posts/${id}/comments/`, { content });
       return res.data;
+    },
+    likeComment: async (commentId: string) => {
+      const res = await apiClient.post(`/comments/${commentId}/like`);
+      return { success: true, likes_count: res.data.likes_count };
     }
   },
   profiles: {
@@ -205,6 +238,7 @@ export const api = {
         isFollowing: d.is_following ?? false,
         course: d.course || '',
         hometown: d.hometown || '',
+        totalLikes: d.total_likes ?? 0,
       };
     },
     getPosts: async (username: string) => {

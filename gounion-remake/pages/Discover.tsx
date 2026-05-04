@@ -240,28 +240,28 @@ export const Discover = () => {
               </div>
 
               {/* Content Overlay (Bottom) */}
-              <div className="absolute inset-x-0 bottom-0 pb-10 pt-24 px-6 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none z-10">
-                <div className="max-w-md pointer-events-auto">
+              <div className="absolute inset-x-0 bottom-0 pb-8 pt-32 px-5 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none z-10">
+                <div className="max-w-[85%] pointer-events-auto">
                   <Link
                     to={`/profile/${reel.author.username}`}
-                    className="inline-flex items-center gap-2 mb-3 group"
+                    className="inline-flex items-center gap-2 mb-2.5 group"
                   >
-                    <span className="font-black text-white text-lg tracking-tight hover:underline">
+                    <span className="font-black text-white text-base tracking-tight hover:underline">
                       @{reel.author.username}
                     </span>
-                    <span className="px-2 py-0.5 rounded-md bg-white/10 text-[10px] font-black text-white uppercase tracking-widest border border-white/5">
+                    <button className="px-2 py-0.5 rounded-md bg-primary text-[9px] font-black text-black uppercase tracking-widest border border-primary/20 shadow-lg shadow-primary/10">
                       Follow
-                    </span>
+                    </button>
                   </Link>
                   
-                  <p className="text-white/90 text-sm leading-relaxed mb-4 font-medium line-clamp-2">
+                  <p className="text-white/90 text-[13px] leading-relaxed mb-4 font-medium line-clamp-2">
                     {reel.content || "Experience the energy of GoUnion campus life! 🎓✨"}
                   </p>
 
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Music2 size={14} className="animate-spin-slow" />
-                    <span className="text-xs font-bold uppercase tracking-widest overflow-hidden whitespace-nowrap">
-                      Original sound - GoUnion Campus
+                  <div className="flex items-center gap-2 text-white/50 bg-white/5 w-fit px-3 py-1.5 rounded-full border border-white/5">
+                    <Music2 size={12} className="animate-spin-slow text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.1em] overflow-hidden whitespace-nowrap max-w-[150px] truncate">
+                      Original sound - @{reel.author.username}
                     </span>
                   </div>
                 </div>

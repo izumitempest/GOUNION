@@ -54,8 +54,7 @@ export const MobileNav = () => {
   return (
     <>
       <div className={`
-        md:hidden fixed left-1/2 -translate-x-1/2 w-[95%] max-w-md h-16 bg-black/60 backdrop-blur-2xl border border-white/10 z-[160] flex items-center justify-around px-2 rounded-2xl shadow-2xl transition-all duration-500
-        ${isDiscover ? "top-4" : "bottom-6"}
+        md:hidden fixed left-1/2 -translate-x-1/2 w-[95%] max-w-md h-16 bg-black/60 backdrop-blur-2xl border border-white/10 z-[160] flex items-center justify-around px-2 rounded-2xl shadow-2xl transition-all duration-500 top-20
       `}>
         {NAV_ITEMS.map((item) => (
           <NavLink

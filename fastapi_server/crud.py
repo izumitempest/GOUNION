@@ -229,10 +229,57 @@ def create_comment(
 def get_comments(db: Session, post_id: int):
     return (
         db.query(models.Comment)
+        .options(joinedload(models.Comment.user), selectinload(models.Comment.likes))
         .filter(models.Comment.post_id == post_id)
         .order_by(models.Comment.created_at.asc())
         .all()
     )
+
+
+def like_comment(db: Session, comment_id: int, user_id: str):
+    from sqlalchemy import and_, delete, insert
+
+    existing_like = db.execute(
+        db.query(models.comment_likes)
+        .filter(
+            and_(
+                models.comment_likes.c.comment_id == comment_id,
+                models.comment_likes.c.user_id == user_id,
+            )
+        )
+        .exists()
+        .select()
+    ).scalar()
+
+    if existing_like:
+        db.execute(
+            delete(models.comment_likes).where(
+                and_(
+                    models.comment_likes.c.comment_id == comment_id,
+                    models.comment_likes.c.user_id == user_id,
+                )
+            )
+        )
+        is_liked = False
+    else:
+        db.execute(
+            insert(models.comment_likes).values(comment_id=comment_id, user_id=user_id)
+        )
+        is_liked = True
+        
+        # Notify comment owner
+        db_comment = get_comment(db, comment_id)
+        if db_comment and db_comment.user_id != user_id:
+            create_notification(
+                db, 
+                user_id=db_comment.user_id, 
+                sender_id=user_id, 
+                type="like_comment", 
+                post_id=db_comment.post_id
+            )
+
+    db.commit()
+    return is_liked
 
 
 def get_comment(db: Session, comment_id: int):

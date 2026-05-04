@@ -398,7 +398,11 @@ async def login_for_access_token(
         if not response.session:
              raise Exception("No session returned from Supabase")
 
-        return {"access_token": response.session.access_token, "token_type": "bearer"}
+        return {
+            "access_token": response.session.access_token, 
+            "token_type": "bearer",
+            "refresh_token": response.session.refresh_token
+        }
     except Exception as e:
         error_msg = str(e)
         print(f"LOGIN FAILED for {form_data.username}: {error_msg}")
@@ -415,6 +419,30 @@ async def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+@app.post("/auth/refresh", response_model=schemas.Token)
+async def refresh_token(body: schemas.RefreshTokenRequest):
+    """Refreshes the user's access token using a refresh token."""
+    try:
+        response = await asyncio.to_thread(
+            supabase.auth.refresh_session,
+            body.refresh_token
+        )
+        if not response.session:
+            raise Exception("Failed to refresh session")
+            
+        return {
+            "access_token": response.session.access_token,
+            "token_type": "bearer",
+            "refresh_token": response.session.refresh_token
+        }
+    except Exception as e:
+        print(f"REFRESH FAILED: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not refresh session",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -610,6 +638,20 @@ def like_post(
     }
 
 
+@app.post("/comments/{comment_id}/like")
+def like_comment(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    is_liked = crud.like_comment(db=db, comment_id=comment_id, user_id=current_user.id)
+    comment = crud.get_comment(db, comment_id=comment_id)
+    return {
+        "status": "liked" if is_liked else "unliked",
+        "likes_count": comment.likes_count if comment else 0,
+    }
+
+
 @app.get("/posts/{post_id}/comments", response_model=List[schemas.Comment])
 def get_post_comments(post_id: int, db: Session = Depends(get_db)):
     return crud.get_comments(db, post_id=post_id)
@@ -741,6 +783,12 @@ def read_profile(
     following = crud.get_following(db, user_id=user.id)
     is_following = any(f.id == current_user.id for f in followers) if current_user else False
 
+    # Calculate total likes across all user's posts
+    total_likes = db.query(func.count(models.post_likes.c.user_id))\
+        .join(models.Post, models.Post.id == models.post_likes.c.post_id)\
+        .filter(models.Post.user_id == user.id)\
+        .scalar() or 0
+
     profile = user.profile
     return {
         "id": profile.id,
@@ -760,6 +808,7 @@ def read_profile(
         "followers_count": len(followers),
         "following_count": len(following),
         "is_following": is_following,
+        "total_likes": total_likes,
     }
 
 

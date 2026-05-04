@@ -9,6 +9,10 @@ class ForgotPasswordRequest(BaseModel):
     email: str
 
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
@@ -77,6 +81,8 @@ class Comment(CommentBase):
     post_id: int
     created_at: datetime
     user: User
+    likes: List[User] = []
+    likes_count: int = 0
 
     class Config:
         from_attributes = True
@@ -336,6 +342,7 @@ class Conversation(ConversationBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+    refresh_token: Optional[str] = None
 
 
 class TokenData(BaseModel):
