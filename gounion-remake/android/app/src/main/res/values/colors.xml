@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- GoUnion Premium Dark Theme -->
-    <color name="colorPrimary">#030303</color>
-    <color name="colorPrimaryDark">#000000</color>
-    <color name="colorAccent">#FFFFFF</color>
-    
-    <color name="splash_background">#030303</color>
-</resources>
