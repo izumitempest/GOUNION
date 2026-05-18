@@ -4,10 +4,12 @@ from sqlalchemy.orm import Session
 import asyncio
 import os
 import httpx
+import logging
 from .. import crud, schemas, dependencies, analytics
 from ..dependencies import get_db, supabase
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
 @router.post("/token", response_model=schemas.Token)
 async def login_for_access_token(
@@ -32,12 +34,20 @@ async def login_for_access_token(
              raise Exception("No session returned from Supabase")
 
         analytics.track_event(response.user.id, "login", {"method": "email"})
-        return {"access_token": response.session.access_token, "token_type": "bearer"}
+        return {
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+            "token_type": "bearer",
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         error_msg = str(e)
-        if "Invalid login credentials" in error_msg:
+        normalized_error = error_msg.lower().replace("_", " ")
+        logger.error("[auth] Login failed for %s: %r", form_data.username, e)
+        if "invalid login credentials" in normalized_error or "invalid credentials" in normalized_error:
             detail = "Incorrect email or password"
-        elif "Email not confirmed" in error_msg:
+        elif "email not confirmed" in normalized_error or "confirm your email" in normalized_error:
             detail = "Please confirm your email before logging in"
         else:
             detail = "Authentication service unavailable"

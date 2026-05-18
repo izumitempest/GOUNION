@@ -13,7 +13,12 @@ logger = logging.getLogger(__name__)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+SUPABASE_KEY = (
+    os.getenv("SUPABASE_KEY")
+    or os.getenv("SUPABASE_ANON_KEY")
+    or SUPABASE_SERVICE_KEY
+)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
