@@ -4,16 +4,19 @@ import traceback
 from datetime import datetime
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 
 load_dotenv()
 
 from typing import Optional
 from urllib.parse import quote
 from . import migrate, schemas
+from .dependencies import get_db
 from .routers import auth, users, posts, groups, messages, admin, media, stories
 
 # Logging configuration
@@ -36,6 +39,11 @@ ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in _raw_origins.split(",") if o.s
 
 # Always include mobile webview origins needed by Android APK builds,
 # even when ALLOWED_ORIGINS is explicitly set in environment variables.
+REQUIRED_FRONTEND_ORIGINS = [
+    "https://gou-frontend.vercel.app",
+    "https://gounion-frontend.onrender.com",
+    "https://gounion-download.vercel.app",
+]
 REQUIRED_MOBILE_ORIGINS = [
     "http://localhost",
     "https://localhost",
@@ -44,7 +52,7 @@ REQUIRED_MOBILE_ORIGINS = [
     "http://10.0.2.2",
     "https://10.0.2.2",
 ]
-for origin in REQUIRED_MOBILE_ORIGINS:
+for origin in [*REQUIRED_FRONTEND_ORIGINS, *REQUIRED_MOBILE_ORIGINS]:
     if origin not in ALLOWED_ORIGINS:
         ALLOWED_ORIGINS.append(origin)
 
@@ -85,6 +93,13 @@ app.include_router(messages.router)
 app.include_router(admin.router)
 app.include_router(media.router)
 app.include_router(stories.router)
+
+@app.post("/token", response_model=schemas.Token)
+async def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    return await auth.login_for_access_token(form_data=form_data, db=db)
 
 @app.get("/")
 async def read_root():
