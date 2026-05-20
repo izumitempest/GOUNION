@@ -17,3 +17,4 @@ gounion-remake/public/apk/*.apk
 gounion-remake/android_legacy/app/build/
 gounion-remake/android/app/build/
 dist/
+.env
