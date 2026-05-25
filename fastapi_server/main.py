@@ -17,7 +17,7 @@ from typing import Optional
 from urllib.parse import quote
 from . import migrate, schemas
 from .dependencies import get_db
-from .routers import auth, users, posts, groups, messages, admin, media, stories
+from .routers import auth, users, posts, groups, messages, admin, media, stories, notifications
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
@@ -93,6 +93,7 @@ app.include_router(messages.router)
 app.include_router(admin.router)
 app.include_router(media.router)
 app.include_router(stories.router)
+app.include_router(notifications.router)
 
 @app.post("/token", response_model=schemas.Token)
 async def login_for_access_token(

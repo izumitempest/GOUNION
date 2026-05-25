@@ -18,3 +18,4 @@ gounion-remake/android_legacy/app/build/
 gounion-remake/android/app/build/
 dist/
 .env
+fastapi_server/.env

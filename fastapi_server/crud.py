@@ -1,6 +1,6 @@
 # crud.py
 from datetime import datetime, timezone, timedelta
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload, aliased
 
 from sqlalchemy import or_, and_, case, extract, func, text
 from . import models, schemas
@@ -73,88 +73,104 @@ def get_posts(db: Session, skip: int = 0, limit: int = 100):
 
 def get_feed_posts(db: Session, user_id: str, skip: int = 0, limit: int = 50, seed: float = None):
     """
-    Personalized Algorithm:
-    Score = (SocialWeight + LocalWeight + EngagementWeight) / (HoursOld + 2)^1.2
-    Excludes posts seen in the last 24 hours.
+    Optimized Feed Algorithm:
+    Computes ranking score and eager loads relationships in a single database query.
+    Utilizes SQL joins instead of dynamic list injection to prevent query plan pollution.
+    
+    Score = (SocialWeight + LocalWeight + EngagementBoost) / (HoursOld + 2)^1.2
     """
     # 1. Set seed for stable random if provided (Postgres specific)
     if seed is not None:
         try:
-            db.execute(text(f"SELECT setseed({seed})"))
-        except Exception as e:
-            print(f"[db] setseed error: {e}")
+            db.execute(text(f"SELECT setseed({float(seed)})"))
+        except Exception:
+            pass
 
-    # 2. Get Seen Posts to exclude (last 24h)
+    # 2. Get user's context (university bonus)
+    user_profile = (
+        db.query(models.Profile.university)
+        .filter(models.Profile.user_id == user_id)
+        .first()
+    )
+    user_university = user_profile[0] if user_profile else None
+
+    # 3. Create aliases for joins
+    follow_alias = aliased(models.Follow)
+    friend_alias = aliased(models.FriendRequest)
+    seen_alias = aliased(models.SeenPost)
+
     since_24h = datetime.now(timezone.utc) - timedelta(days=1)
-    seen_post_ids = db.query(models.SeenPost.post_id).filter(
-        models.SeenPost.user_id == user_id,
-        models.SeenPost.seen_at >= since_24h
-    ).subquery()
 
-    # 3. Get user's context (university bonus)
-    user_profile = db.query(models.Profile).filter(models.Profile.user_id == user_id).first()
-
-    user_university = user_profile.university if user_profile else None
-
-    # 2. Social subqueries
-    friend_ids = (
-        db.query(models.FriendRequest.sender_id)
-        .filter(models.FriendRequest.receiver_id == user_id, models.FriendRequest.status == "accepted")
-        .union(
-            db.query(models.FriendRequest.receiver_id).filter(
-                models.FriendRequest.sender_id == user_id,
-                models.FriendRequest.status == "accepted"
-            )
-        )
-    ).subquery()
-
-    following_ids = db.query(models.Follow.following_id).filter(
-        models.Follow.follower_id == user_id
-    ).subquery()
-
-    # 3. Dynamic weights using CASE
+    # 4. Build scoring expressions using CASE on join matches
     social_weight = case(
         (models.Post.user_id == user_id, 120),
-        (models.Post.user_id.in_(friend_ids), 100),
-        (models.Post.user_id.in_(following_ids), 80),
-        else_=0
+        (friend_alias.id.isnot(None), 100),
+        (follow_alias.id.isnot(None), 80),
+        else_=10  # Baseline discovery weight
     )
 
     local_weight = case(
         (models.Profile.university == user_university, 50),
         else_=0
-    )
+    ) if user_university else 0
 
-    # engagement_weight uses the column_property likes_count
-    engagement_weight = (models.Post.likes_count * 2)
+    engagement_boost = func.least(models.Post.likes_count * 2, 200)
 
-    total_weight = social_weight + local_weight + engagement_weight
-    
-    # 4. Time Decay
+    total_weight = social_weight + local_weight + engagement_boost
+
     now = datetime.now(timezone.utc)
     hours_old = extract('epoch', now - models.Post.created_at) / 3600
     decay_score = total_weight / func.pow(hours_old + 2, 1.2)
 
-    # 5. Hybrid Query: Social relevance + discovery
-    return (
+    # 5. Single query with joins for relationships and anti-join for seen posts
+    query = (
         db.query(models.Post)
-        .join(models.User, models.Post.user_id == models.User.id)
-        .join(models.Profile, models.User.id == models.Profile.user_id)
-        .options(
-            joinedload(models.Post.user),
-            selectinload(models.Post.likes)
+        .join(models.Profile, models.Post.user_id == models.Profile.user_id)
+        # Left join follows for the current user
+        .outerjoin(
+            follow_alias,
+            and_(
+                models.Post.user_id == follow_alias.following_id,
+                follow_alias.follower_id == user_id
+            )
         )
-        .filter(~models.Post.id.in_(seen_post_ids))
+        # Left join accepted friend requests for the current user and author
+        .outerjoin(
+            friend_alias,
+            and_(
+                friend_alias.status == "accepted",
+                or_(
+                    and_(friend_alias.sender_id == user_id, friend_alias.receiver_id == models.Post.user_id),
+                    and_(friend_alias.receiver_id == user_id, friend_alias.sender_id == models.Post.user_id)
+                )
+            )
+        )
+        # Left join seen posts to act as an anti-join filter
+        .outerjoin(
+            seen_alias,
+            and_(
+                models.Post.id == seen_alias.post_id,
+                seen_alias.user_id == user_id,
+                seen_alias.seen_at >= since_24h
+            )
+        )
+        .options(
+            joinedload(models.Post.user).joinedload(models.User.profile),
+            selectinload(models.Post.likes),
+            selectinload(models.Post.comments),
+        )
+        .filter(seen_alias.post_id.is_(None))  # Anti-join filter: must not have been seen
+    )
+
+    return (
+        query
         .order_by(decay_score.desc(), func.random())
         .offset(skip)
         .limit(limit)
         .all()
     )
 
-    if reels:
-        query = query.filter(models.Post.video.isnot(None))
 
-    return query.order_by(func.random()).offset(skip).limit(limit).all()
 
 
 def mark_post_as_seen(db: Session, user_id: str, post_id: int):
@@ -165,6 +181,34 @@ def mark_post_as_seen(db: Session, user_id: str, post_id: int):
     return db_seen
 
 
+# ---- Notification CRUD ----
+
+def get_unread_notification_count(db: Session, user_id: str) -> int:
+    """Returns the count of unread notifications."""
+    return (
+        db.query(func.count(models.Notification.id))
+        .filter(
+            models.Notification.user_id == user_id,
+            models.Notification.is_read == False,
+        )
+        .scalar()
+    )
+
+
+def mark_notification_read(db: Session, notification_id: int, user_id: str):
+    """Marks a single notification as read."""
+    notif = (
+        db.query(models.Notification)
+        .filter(
+            models.Notification.id == notification_id,
+            models.Notification.user_id == user_id,
+        )
+        .first()
+    )
+    if notif:
+        notif.is_read = True
+        db.commit()
+    return notif
 
 
 
@@ -199,20 +243,29 @@ def update_post(db: Session, post_id: int, post_update: schemas.PostUpdate):
 
 
 def create_notification(
-    db: Session, user_id: str, sender_id: str, type: str, post_id: int = None
+    db: Session,
+    user_id: str,
+    sender_id: str,
+    post_id: int = None,
+    group_id: int = None,
+    **kwargs
 ):
     if user_id == sender_id:
-        return  # Don't notify self actions
+        return None
+
+    notification_type = kwargs.get("type") or kwargs.get("type_") or kwargs.get("notification_type")
+    if not notification_type:
+        raise ValueError("Missing notification type")
 
     # Check for existing notification (deduplication)
     # Special handling for 'like' to prevent spam
-    if type == "like" and post_id:
+    if notification_type == "like" and post_id:
         existing = (
             db.query(models.Notification)
             .filter(
                 models.Notification.user_id == user_id,
                 models.Notification.sender_id == sender_id,
-                models.Notification.type == type,
+                models.Notification.type == notification_type,
                 models.Notification.post_id == post_id,
             )
             .first()
@@ -221,10 +274,15 @@ def create_notification(
             return existing
 
     db_notification = models.Notification(
-        user_id=user_id, sender_id=sender_id, type=type, post_id=post_id
+        user_id=user_id,
+        sender_id=sender_id,
+        type=notification_type,
+        post_id=post_id,
+        group_id=group_id,
     )
     db.add(db_notification)
     db.commit()
+    db.refresh(db_notification)
     return db_notification
 
 
@@ -802,12 +860,18 @@ def get_conversation(db: Session, conversation_id: int):
 
 
 def get_messages(db: Session, conversation_id: int, skip: int = 0, limit: int = 50):
-    return (
-        db.query(models.Message)
+    subquery = (
+        db.query(models.Message.id)
         .filter(models.Message.conversation_id == conversation_id)
-        .order_by(models.Message.created_at.asc())
+        .order_by(models.Message.created_at.desc())
         .offset(skip)
         .limit(limit)
+        .subquery()
+    )
+    return (
+        db.query(models.Message)
+        .filter(models.Message.id.in_(subquery))
+        .order_by(models.Message.created_at.asc())
         .all()
     )
 

@@ -45,6 +45,22 @@ def get_conversation(
         raise HTTPException(status_code=403, detail="Forbidden")
     return conv
 
+@router.get("/{conversation_id}/messages", response_model=List[schemas.Message])
+def get_conversation_messages(
+    conversation_id: int,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    # Verify participant
+    conv = db.query(models.Conversation).options(joinedload(models.Conversation.participants)).filter(models.Conversation.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if current_user.id not in [p.id for p in conv.participants]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return crud.get_messages(db, conversation_id=conversation_id, skip=skip, limit=limit)
+
 @router.post("/{conversation_id}/messages/", response_model=schemas.Message)
 async def create_message(
     conversation_id: int,

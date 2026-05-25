@@ -316,15 +316,17 @@ class Conversation(Base):
     participants = relationship(
         "User", secondary="conversation_participants", backref="conversations"
     )
-    messages = relationship("Message", back_populates="conversation")
+    messages = relationship(
+        "Message", back_populates="conversation", cascade="all, delete-orphan"
+    )
 
 
 class Message(Base):
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True, index=True)
-    conversation_id = Column(Integer, ForeignKey("conversations.id"))
-    sender_id = Column(String, ForeignKey("users.id"))
+    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"))
+    sender_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     content = Column(String, nullable=True)
     image_url = Column(String, nullable=True)
     video_url = Column(String, nullable=True)
