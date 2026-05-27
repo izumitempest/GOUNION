@@ -20,9 +20,16 @@ class ConnectionManager:
             del self.active_connections[user_id]
 
     async def broadcast_to_conversation(self, message: dict, participant_ids: List[str]):
+        dead_connections = []
         for pid in participant_ids:
             if pid in self.active_connections:
-                await self.active_connections[pid].send_json(message)
+                try:
+                    await self.active_connections[pid].send_json(message)
+                except Exception:
+                    # Connection is dead/broken, mark it for pruning
+                    dead_connections.append(pid)
+        for pid in dead_connections:
+            self.disconnect(pid)
 
 manager = ConnectionManager()
 
@@ -100,6 +107,8 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     try:
         while True:
             await websocket.receive_text()
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
         manager.disconnect(user_id)
 
