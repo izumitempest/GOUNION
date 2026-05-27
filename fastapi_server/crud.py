@@ -160,11 +160,14 @@ def get_feed_posts(db: Session, user_id: str, skip: int = 0, limit: int = 50, se
             selectinload(models.Post.comments),
         )
         .filter(seen_alias.post_id.is_(None))  # Anti-join filter: must not have been seen
+        # CRITICAL OPTIMIZATION: Use the B-Tree created_at index to bound the algorithmic pool
+        # This prevents Postgres from running expensive power functions on the entire database
+        .filter(models.Post.created_at >= (datetime.now(timezone.utc) - timedelta(days=14)))
     )
 
     return (
         query
-        .order_by(decay_score.desc(), func.random())
+        .order_by(decay_score.desc())
         .offset(skip)
         .limit(limit)
         .all()
