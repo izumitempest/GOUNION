@@ -16,7 +16,7 @@ def track_event(user_id: str, event_name: str, properties: Optional[Dict[str, An
     """
     if posthog:
         try:
-            posthog.capture(user_id, event_name, properties or {})
+            posthog.capture(distinct_id=user_id, event=event_name, properties=properties or {})
         except Exception as e:
             # We don't want analytics to crash the main app
             print(f"[analytics] Failed to track event {event_name}: {e}")
