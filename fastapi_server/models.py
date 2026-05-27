@@ -145,9 +145,9 @@ class FriendRequest(Base):
     __tablename__ = "friend_requests"
 
     id = Column(Integer, primary_key=True, index=True)
-    sender_id = Column(String, ForeignKey("users.id"), index=True)
-    receiver_id = Column(String, ForeignKey("users.id"), index=True)
-    status = Column(String, default="pending", index=True)  # pending, accepted, rejected
+    sender_id = Column(String, ForeignKey("users.id"))
+    receiver_id = Column(String, ForeignKey("users.id"))
+    status = Column(String, default="pending")  # pending, accepted, rejected
     created_at = Column(DateTime, default=func.now())
 
     sender = relationship("User", foreign_keys=[sender_id])
@@ -158,8 +158,8 @@ class Follow(Base):
     __tablename__ = "follows"
 
     id = Column(Integer, primary_key=True, index=True)
-    follower_id = Column(String, ForeignKey("users.id"), index=True)
-    following_id = Column(String, ForeignKey("users.id"), index=True)
+    follower_id = Column(String, ForeignKey("users.id"))
+    following_id = Column(String, ForeignKey("users.id"))
     created_at = Column(DateTime, default=func.now())
 
 
