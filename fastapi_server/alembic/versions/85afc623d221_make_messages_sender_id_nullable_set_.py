@@ -28,4 +28,3 @@ def downgrade() -> None:
     """Downgrade schema."""
     op.drop_constraint('messages_sender_id_fkey', 'messages', type_='foreignkey')
     op.create_foreign_key('messages_sender_id_fkey', 'messages', 'users', ['sender_id'], ['id'])
-s

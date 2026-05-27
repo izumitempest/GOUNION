@@ -72,6 +72,9 @@ async def create_message(
     if not conv or current_user.id not in [p.id for p in conv.participants]:
         raise HTTPException(status_code=403, detail="Forbidden")
     
+    # Ensure conversation_id is injected from the URL path, preventing null bugs
+    message.conversation_id = conversation_id
+    
     db_message = crud.create_message(db, message=message, sender_id=current_user.id)
     full_message = db.query(models.Message).options(joinedload(models.Message.sender)).filter(models.Message.id == db_message.id).first()
     
