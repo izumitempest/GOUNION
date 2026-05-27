@@ -246,16 +246,12 @@ def create_notification(
     db: Session,
     user_id: str,
     sender_id: str,
+    notification_type: str,
     post_id: int = None,
     group_id: int = None,
-    **kwargs
 ):
     if user_id == sender_id:
         return None
-
-    notification_type = kwargs.get("type") or kwargs.get("type_") or kwargs.get("notification_type")
-    if not notification_type:
-        raise ValueError("Missing notification type")
 
     # Check for existing notification (deduplication)
     # Special handling for 'like' to prevent spam
@@ -337,7 +333,7 @@ def like_post(db: Session, post: models.Post, user: models.User):
         db.execute(insert(models.post_likes).values(post_id=post.id, user_id=user.id))
         is_liked = True
         create_notification(
-            db, user_id=post.user_id, sender_id=user.id, type="like", post_id=post.id
+            db, user_id=post.user_id, sender_id=user.id, notification_type="like", post_id=post.id
         )
 
     db.commit()
@@ -358,7 +354,7 @@ def create_comment(
     post = get_post(db, post_id)
     if post:
         create_notification(
-            db, user_id=post.user_id, sender_id=user_id, type="comment", post_id=post_id
+            db, user_id=post.user_id, sender_id=user_id, notification_type="comment", post_id=post_id
         )
 
     return db_comment
@@ -409,10 +405,10 @@ def like_comment(db: Session, comment_id: int, user_id: str):
         db_comment = get_comment(db, comment_id)
         if db_comment and db_comment.user_id != user_id:
             create_notification(
-                db, 
-                user_id=db_comment.user_id, 
-                sender_id=user_id, 
-                type="like_comment", 
+                db,
+                user_id=db_comment.user_id,
+                sender_id=user_id,
+                notification_type="like_comment",
                 post_id=db_comment.post_id
             )
 
@@ -472,7 +468,7 @@ def create_friend_request(db: Session, sender_id: str, receiver_id: str):
     db.commit()
     db.refresh(db_request)
     create_notification(
-        db, user_id=receiver_id, sender_id=sender_id, type="friend_request"
+        db, user_id=receiver_id, sender_id=sender_id, notification_type="friend_request"
     )
     return db_request
 
@@ -531,7 +527,7 @@ def follow_user(db: Session, follower_id: str, following_id: str):
     db.add(db_follow)
     db.commit()
     db.refresh(db_follow)
-    create_notification(db, user_id=following_id, sender_id=follower_id, type="follow")
+    create_notification(db, user_id=following_id, sender_id=follower_id, notification_type="follow")
     return db_follow
 
 
@@ -805,7 +801,7 @@ def create_group_request(db: Session, group_id: int, user_id: str):
             db,
             user_id=group.creator_id,
             sender_id=user_id,
-            type="group_request",
+            notification_type="group_request",
             group_id=group_id,
         )
 
@@ -877,9 +873,6 @@ def get_messages(db: Session, conversation_id: int, skip: int = 0, limit: int = 
 
 
 def create_message(db: Session, message: schemas.MessageCreate, sender_id: str):
-    print(
-        f"DEBUG: creating message in conv {message.conversation_id} from user {sender_id}"
-    )
     db_message = models.Message(
         **message.model_dump(),
         sender_id=sender_id,

@@ -320,10 +320,10 @@ class MessageCreate(MessageBase):
 class Message(MessageBase):
     id: int
     conversation_id: int
-    sender_id: str
+    sender_id: Optional[str] = None  # NULL when the account has been deleted
     created_at: datetime
     is_read: bool
-    sender: User
+    sender: Optional[User] = None  # Serialised as null; frontend renders "Deleted User"
 
     class Config:
         from_attributes = True
