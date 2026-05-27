@@ -337,6 +337,16 @@ class ConversationCreate(ConversationBase):
     participant_ids: List[str]
 
 
+class ConversationSummary(ConversationBase):
+    """Lightweight schema for listing conversations — excludes messages to prevent N+1."""
+    id: int
+    created_at: datetime
+    participants: List[User]
+
+    class Config:
+        from_attributes = True
+
+
 class Conversation(ConversationBase):
     id: int
     created_at: datetime

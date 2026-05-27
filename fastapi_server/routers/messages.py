@@ -45,7 +45,7 @@ def get_conversation(
         raise HTTPException(status_code=403, detail="Forbidden")
     return conv
 
-@router.get("/{conversation_id}/messages", response_model=List[schemas.Message])
+@router.get("/{conversation_id}/messages/", response_model=List[schemas.Message])
 def get_conversation_messages(
     conversation_id: int,
     skip: int = 0,

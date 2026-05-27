@@ -2,7 +2,7 @@
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session, joinedload, selectinload, aliased
 
-from sqlalchemy import or_, and_, case, extract, func, text
+from sqlalchemy import or_, and_, case, extract, func, text, select
 from . import models, schemas
 from passlib.context import CryptContext
 
@@ -844,6 +844,10 @@ def update_group_request_status(db: Session, request_id: int, status: str):
 def get_conversations(db: Session, user_id: str):
     return (
         db.query(models.Conversation)
+        .options(
+            selectinload(models.Conversation.participants).joinedload(models.User.profile),
+            selectinload(models.Conversation.messages).joinedload(models.Message.sender),
+        )
         .filter(models.Conversation.participants.any(id=user_id))
         .order_by(models.Conversation.created_at.desc())
         .all()
@@ -860,15 +864,17 @@ def get_conversation(db: Session, conversation_id: int):
 
 def get_messages(db: Session, conversation_id: int, skip: int = 0, limit: int = 50):
     subquery = (
-        db.query(models.Message.id)
-        .filter(models.Message.conversation_id == conversation_id)
+        select(models.Message.id)
+        .where(models.Message.conversation_id == conversation_id)
         .order_by(models.Message.created_at.desc())
         .offset(skip)
         .limit(limit)
-        .subquery()
     )
     return (
         db.query(models.Message)
+        .options(
+            joinedload(models.Message.sender).joinedload(models.User.profile),
+        )
         .filter(models.Message.id.in_(subquery))
         .order_by(models.Message.created_at.asc())
         .all()
