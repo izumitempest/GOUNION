@@ -96,6 +96,27 @@ class Comment(CommentBase):
         from_attributes = True
 
 
+class UserMin(BaseModel):
+    id: str
+    username: str
+
+    class Config:
+        from_attributes = True
+
+class PostResponse(BaseModel):
+    id: int
+    caption: Optional[str]
+    image: Optional[str]
+    video: Optional[str]
+    created_at: datetime
+    user_id: str
+    user: UserMin
+    likes_count: int
+    comments_count: int
+
+    class Config:
+        from_attributes = True
+
 class PostBase(BaseModel):
     caption: Optional[str] = None
     image: Optional[str] = None
@@ -315,6 +336,7 @@ class MessageBase(BaseModel):
 
 class MessageCreate(MessageBase):
     conversation_id: Optional[int] = None
+    recipient_id: Optional[str] = None
 
 
 class Message(MessageBase):

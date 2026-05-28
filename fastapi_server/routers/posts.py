@@ -1,111 +1,106 @@
+# posts.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+import asyncio
 from .. import crud, schemas, models, analytics
 from ..dependencies import get_db, get_current_user
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
-@router.get("/", response_model=List[schemas.Post])
-def read_posts(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_posts(db, skip=skip, limit=limit)
+@router.get("/", response_model=List[schemas.PostResponse])
+async def read_posts(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return await asyncio.to_thread(crud.get_posts, db, skip, limit)
 
-@router.post("/", response_model=schemas.Post)
-def create_post(
+@router.post("/", response_model=dict)
+async def create_post(
     post: schemas.PostCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    db_post = crud.create_post(db=db, post=post, user_id=current_user.id)
-    analytics.track_event(current_user.id, "post_created", {
-        "post_id": db_post.id,
-        "is_group_post": db_post.group_id is not None
-    })
-    return db_post
+    # crud.create_post_transactional handles commit internally
+    db_post_dict = await asyncio.to_thread(crud.create_post_transactional, db, post, current_user.id)
+    analytics.track_event(current_user.id, "post_created", {"post_id": db_post_dict["id"]})
+    return db_post_dict
 
 @router.delete("/{post_id}", response_model=schemas.StatusMessage)
-def delete_post(
+async def delete_post(
     post_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    post = crud.get_post(db, post_id=post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    
     is_staff = current_user.role in ["admin", "moderator"]
-    if post.user_id != current_user.id and not is_staff:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this post")
-    
-    crud.delete_post(db=db, post_id=post_id)
+    if is_staff:
+        success = await asyncio.to_thread(crud.delete_post_administrative_transactional, db, post_id)
+    else:
+        success = await asyncio.to_thread(crud.delete_post_secure_transactional, db, post_id, current_user.id)
+        
+    if not success:
+        raise HTTPException(status_code=403, detail="Not authorized or post not found")
+        
     return {"status": "success", "message": "Post deleted"}
 
-@router.put("/{post_id}", response_model=schemas.Post)
-def update_post(
+@router.put("/{post_id}", response_model=schemas.StatusMessage)
+async def update_post(
     post_id: int,
     post_update: schemas.PostUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    post = crud.get_post(db, post_id=post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    if post.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to update this post")
-    return crud.update_post(db=db, post_id=post_id, post_update=post_update)
+    success = await asyncio.to_thread(crud.update_post_secure_transactional, db, post_id, current_user.id, post_update)
+    if not success:
+        raise HTTPException(status_code=403, detail="Not authorized or post not found")
+    return {"status": "success", "message": "Post updated"}
 
-@router.post("/{post_id}/like", response_model=schemas.LikeResponse)
-def like_post(
+@router.post("/{post_id}/like", response_model=schemas.StatusMessage)
+async def like_post(
     post_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    post = crud.get_post(db, post_id=post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    is_liked = crud.like_post(db=db, post=post, user=current_user)
-    db.refresh(post)
-    
-    if is_liked:
+    added = await asyncio.to_thread(crud.add_post_like_ultra_performance, db, post_id, current_user.id)
+    if added:
         analytics.track_event(current_user.id, "post_liked", {"post_id": post_id})
+    return {"status": "success", "message": "Post liked" if added else "Post already liked"}
 
-    return {
-        "status": "liked" if is_liked else "unliked",
-        "likes_count": len(post.likes),
-    }
+@router.delete("/{post_id}/like", response_model=schemas.StatusMessage)
+async def unlike_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    removed = await asyncio.to_thread(crud.remove_post_like_transactional, db, post_id, current_user.id)
+    return {"status": "success", "message": "Post unliked" if removed else "Like not found"}
 
-@router.get("/{post_id}/comments", response_model=List[schemas.Comment])
-def get_post_comments(post_id: int, db: Session = Depends(get_db)):
-    return crud.get_comments(db, post_id=post_id)
+@router.get("/{post_id}/comments", response_model=List[dict])
+async def get_post_comments(post_id: int, db: Session = Depends(get_db)):
+    return await asyncio.to_thread(crud.get_comments, db, post_id)
 
-@router.post("/{post_id}/comments", response_model=schemas.Comment)
-def create_comment(
+@router.post("/{post_id}/comments", response_model=dict)
+async def create_comment(
     post_id: int,
     comment: schemas.CommentCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return crud.create_comment(db=db, comment=comment, user_id=current_user.id, post_id=post_id)
+    return await asyncio.to_thread(crud.create_comment_transactional, db, comment, current_user.id, post_id)
 
-# Feed router usually separate but can be here
-@router.get("/feed", response_model=List[schemas.Post])
-def read_feed(
+@router.get("/feed", response_model=List[schemas.PostResponse])
+async def read_feed(
     skip: int = 0,
     limit: int = 50,
     seed: float = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return crud.get_feed_posts(db, user_id=current_user.id, skip=skip, limit=limit, seed=seed)
+    return await asyncio.to_thread(crud.get_feed_posts_optimized, db, current_user.id, skip, limit, seed)
 
 @router.post("/{post_id}/view", response_model=schemas.StatusMessage)
-def mark_post_viewed(
+async def mark_post_viewed(
     post_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    crud.mark_post_as_seen(db, user_id=current_user.id, post_id=post_id)
+    await asyncio.to_thread(crud.mark_post_as_seen_transactional, db, current_user.id, post_id)
     analytics.track_event(current_user.id, "post_viewed", {"post_id": post_id})
     return {"status": "success", "message": "Post marked as seen"}
-
-

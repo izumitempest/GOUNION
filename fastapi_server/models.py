@@ -12,7 +12,8 @@ from sqlalchemy import (
     Float,
     JSON,
     select,
-    func
+    func,
+    UniqueConstraint
 )
 
 from .database import Base
@@ -22,29 +23,33 @@ import datetime
 post_likes = Table(
     "post_likes",
     Base.metadata,
-    Column("user_id", String, ForeignKey("users.id")),
-    Column("post_id", Integer, ForeignKey("posts.id")),
+    Column("user_id", String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("post_id", Integer, ForeignKey("posts.id", ondelete="CASCADE"), primary_key=True),
+    UniqueConstraint("user_id", "post_id", name="uq_post_user_likes")
 )
 
 post_dislikes = Table(
     "post_dislikes",
     Base.metadata,
-    Column("user_id", String, ForeignKey("users.id")),
-    Column("post_id", Integer, ForeignKey("posts.id")),
+    Column("user_id", String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("post_id", Integer, ForeignKey("posts.id", ondelete="CASCADE"), primary_key=True),
+    UniqueConstraint("user_id", "post_id", name="uq_post_user_dislikes")
 )
 
 comment_likes = Table(
     "comment_likes",
     Base.metadata,
-    Column("user_id", String, ForeignKey("users.id")),
-    Column("comment_id", Integer, ForeignKey("comments.id")),
+    Column("user_id", String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+    Column("comment_id", Integer, ForeignKey("comments.id", ondelete="CASCADE"), primary_key=True),
+    UniqueConstraint("user_id", "comment_id", name="uq_comment_user_likes")
 )
 
 conversation_participants = Table(
     "conversation_participants",
     Base.metadata,
-    Column("user_id", String, ForeignKey("users.id")),
-    Column("conversation_id", Integer, ForeignKey("conversations.id")),
+    Column("user_id", String, ForeignKey("users.id", ondelete="CASCADE")),
+    Column("conversation_id", Integer, ForeignKey("conversations.id", ondelete="CASCADE")),
+    UniqueConstraint("user_id", "conversation_id", name="uq_user_conversation")
 )
 
 
@@ -145,40 +150,52 @@ class FriendRequest(Base):
     __tablename__ = "friend_requests"
 
     id = Column(Integer, primary_key=True, index=True)
-    sender_id = Column(String, ForeignKey("users.id"))
-    receiver_id = Column(String, ForeignKey("users.id"))
+    sender_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
+    receiver_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
     status = Column(String, default="pending")  # pending, accepted, rejected
     created_at = Column(DateTime, default=func.now(), index=True)
 
     sender = relationship("User", foreign_keys=[sender_id])
     receiver = relationship("User", foreign_keys=[receiver_id])
 
+    __table_args__ = (
+        UniqueConstraint("sender_id", "receiver_id", name="uq_friend_request"),
+    )
+
 
 class Follow(Base):
     __tablename__ = "follows"
 
     id = Column(Integer, primary_key=True, index=True)
-    follower_id = Column(String, ForeignKey("users.id"))
-    following_id = Column(String, ForeignKey("users.id"))
+    follower_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
+    following_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
     created_at = Column(DateTime, default=func.now(), index=True)
+
+    __table_args__ = (
+        UniqueConstraint("follower_id", "following_id", name="uq_follow"),
+    )
 
 
 class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String, ForeignKey("users.id"))  # Receiver
-    sender_id = Column(String, ForeignKey("users.id"))  # Actor
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))  # Receiver
+    sender_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))  # Actor
     type = Column(
         String
     )  # 'like', 'comment', 'friend_request', 'follow', 'group_invite', 'group_request'
-    post_id = Column(Integer, ForeignKey("posts.id"), nullable=True)
-    group_id = Column(Integer, ForeignKey("groups.id"), nullable=True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"), nullable=True)
+    group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=True)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=func.now(), index=True)
 
     user = relationship("User", foreign_keys=[user_id], back_populates="notifications")
     sender = relationship("User", foreign_keys=[sender_id])
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "sender_id", "type", "post_id", "group_id", name="uq_notification_dedup"),
+    )
 
 
 class Report(Base):
@@ -228,26 +245,34 @@ class GroupMember(Base):
     __tablename__ = "group_members"
 
     id = Column(Integer, primary_key=True, index=True)
-    group_id = Column(Integer, ForeignKey("groups.id"))
-    user_id = Column(String, ForeignKey("users.id"))
+    group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
     role = Column(String, default="member")  # admin, moderator, member
     joined_at = Column(DateTime, default=func.now())
 
     group = relationship("Group", back_populates="members")
     user = relationship("User")
 
+    __table_args__ = (
+        UniqueConstraint("group_id", "user_id", name="uq_group_member"),
+    )
+
 
 class GroupRequest(Base):
     __tablename__ = "group_requests"
 
     id = Column(Integer, primary_key=True, index=True)
-    group_id = Column(Integer, ForeignKey("groups.id"))
-    user_id = Column(String, ForeignKey("users.id"))
+    group_id = Column(Integer, ForeignKey("groups.id", ondelete="CASCADE"))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
     status = Column(String, default="pending")  # pending, accepted, rejected
     created_at = Column(DateTime, default=func.now(), index=True)
 
     group = relationship("Group", back_populates="requests")
     user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("group_id", "user_id", name="uq_group_request"),
+    )
 
 
 class UserDevice(Base):
@@ -363,24 +388,32 @@ class StoryView(Base):
     __tablename__ = "story_views"
 
     id = Column(Integer, primary_key=True, index=True)
-    story_id = Column(Integer, ForeignKey("stories.id"))
-    user_id = Column(String, ForeignKey("users.id"))
+    story_id = Column(Integer, ForeignKey("stories.id", ondelete="CASCADE"))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
     viewed_at = Column(DateTime, default=func.now())
 
     story = relationship("Story", back_populates="views")
     user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("story_id", "user_id", name="uq_story_view"),
+    )
 
 
 class StoryLike(Base):
     __tablename__ = "story_likes"
 
     id = Column(Integer, primary_key=True, index=True)
-    story_id = Column(Integer, ForeignKey("stories.id"))
-    user_id = Column(String, ForeignKey("users.id"))
+    story_id = Column(Integer, ForeignKey("stories.id", ondelete="CASCADE"))
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"))
     created_at = Column(DateTime, default=func.now())
 
     story = relationship("Story", back_populates="likes")
     user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("story_id", "user_id", name="uq_story_like"),
+    )
 
 
 class SeenPost(Base):

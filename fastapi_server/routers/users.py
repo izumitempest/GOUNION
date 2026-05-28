@@ -10,10 +10,12 @@ router = APIRouter(prefix="/users", tags=["users"])
 @router.post("/", response_model=schemas.User)
 async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     try:
-        if crud.get_user_by_username(db, username=user.username):
+        username_exists = await asyncio.to_thread(crud.get_user_by_username, db, username=user.username)
+        if username_exists:
             raise HTTPException(status_code=400, detail="Username already registered")
 
-        if crud.get_user_by_email(db, email=user.email):
+        email_exists = await asyncio.to_thread(crud.get_user_by_email, db, email=user.email)
+        if email_exists:
             raise HTTPException(status_code=400, detail="An account with this email already exists.")
 
         auth_response = await asyncio.to_thread(
@@ -27,7 +29,8 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         supabase_user_id = auth_response.user.id
         
         try:
-            db_user = crud.create_user(db=db, user=user, supabase_id=supabase_user_id)
+            db_user = await asyncio.to_thread(crud.create_user, db=db, user=user, supabase_id=supabase_user_id)
+            db.commit()
             analytics.identify_user(db_user.id, {
                 "username": db_user.username,
                 "email": db_user.email,
@@ -37,6 +40,7 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
             return db_user
         except Exception as db_exc:
             logger.error(f"LOCAL DB FAILURE for {supabase_user_id}: {db_exc}. Rolling back Supabase...")
+            db.rollback()
             try:
                 await asyncio.to_thread(supabase.auth.admin.delete_user, supabase_user_id)
             except Exception:
@@ -52,25 +56,60 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 async def read_users_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
+def _sync_map_users(users: List[models.User]) -> List[dict]:
+    return [{
+        "id": u.id,
+        "username": u.username,
+        "is_active": u.is_active,
+        "role": u.role,
+        "profile": {
+            "bio": u.profile.bio,
+            "profile_picture": u.profile.profile_picture,
+            "university": u.profile.university,
+            "profile_type": u.profile.profile_type,
+            "course": u.profile.course,
+            "graduation_year": u.profile.graduation_year,
+            "cover_photo": u.profile.cover_photo,
+            "relationship_status": u.profile.relationship_status,
+            "hometown": u.profile.hometown
+        } if u.profile else None
+    } for u in users]
+
 @router.get("/suggestions", response_model=List[schemas.User])
-def get_user_suggestions(
+async def get_user_suggestions(
     limit: int = 10,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return crud.get_suggested_users(db, user_id=current_user.id, limit=limit)
+    users = await asyncio.to_thread(crud.get_suggested_users, db, user_id=current_user.id, limit=limit)
+    return await asyncio.to_thread(_sync_map_users, users)
 
 
 @router.put("/me/profile", response_model=schemas.Profile)
-def update_profile(
+async def update_profile(
     profile_update: schemas.ProfileUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return crud.update_profile(db, user_id=current_user.id, profile_update=profile_update)
+    db_profile = await asyncio.to_thread(crud.update_profile_secure, db, user_id=current_user.id, profile_update=profile_update)
+    db.commit()
+    # Simple DTO mapping for single object
+    return {
+        "id": db_profile.id,
+        "user_id": db_profile.user_id,
+        "bio": db_profile.bio,
+        "profile_picture": db_profile.profile_picture,
+        "university": db_profile.university,
+        "profile_type": db_profile.profile_type,
+        "course": db_profile.course,
+        "graduation_year": db_profile.graduation_year,
+        "cover_photo": db_profile.cover_photo,
+        "relationship_status": db_profile.relationship_status,
+        "hometown": db_profile.hometown
+    }
 
 @router.post("/me/device", response_model=schemas.UserDevice)
-def register_device(
+async def register_device(
     device: schemas.UserDeviceCreate,
     request: Request,
     db: Session = Depends(get_db),
@@ -78,50 +117,95 @@ def register_device(
 ):
     if not device.ip_address:
         device.ip_address = request.client.host
-    return crud.register_device(db, user_id=current_user.id, device=device)
+    db_device = await asyncio.to_thread(crud.register_device, db, user_id=current_user.id, device=device)
+    db.commit()
+    return {
+        "id": db_device.id,
+        "user_id": db_device.user_id,
+        "device_name": db_device.device_name,
+        "device_type": db_device.device_type,
+        "os_version": db_device.os_version,
+        "browser": db_device.browser,
+        "ip_address": db_device.ip_address,
+        "fcm_token": db_device.fcm_token,
+        "last_active": db_device.last_active
+    }
 
 @router.post("/me/location", response_model=schemas.LocationHistory)
-def update_location(
+async def update_location(
     location: schemas.LocationHistoryCreate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return crud.update_location(db, user_id=current_user.id, location=location)
+    db_location = await asyncio.to_thread(crud.update_location, db, user_id=current_user.id, location=location)
+    db.commit()
+    return {
+        "id": db_location.id,
+        "user_id": db_location.user_id,
+        "latitude": db_location.latitude,
+        "longitude": db_location.longitude,
+        "city": db_location.city,
+        "country": db_location.country,
+        "timestamp": db_location.timestamp
+    }
 
 @router.post("/{user_id}/follow", response_model=schemas.StatusMessage)
-def follow_user(
+async def follow_user(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot follow yourself")
-    crud.follow_user(db, follower_id=current_user.id, following_id=user_id)
+    await asyncio.to_thread(crud.follow_user, db, follower_id=current_user.id, following_id=user_id)
+    db.commit()
     analytics.track_event(current_user.id, "user_followed", {"target_user_id": user_id})
-    return {"status": "following"}
+    return {"status": "success", "message": "following"}
 
 @router.post("/{user_id}/unfollow", response_model=schemas.StatusMessage)
-def unfollow_user(
+async def unfollow_user(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    crud.unfollow_user(db, follower_id=current_user.id, following_id=user_id)
-    return {"status": "unfollowed"}
+    await asyncio.to_thread(crud.unfollow_user, db, follower_id=current_user.id, following_id=user_id)
+    db.commit()
+    return {"status": "success", "message": "unfollowed"}
 
 @router.get("/{user_id}/following", response_model=List[schemas.User])
-def get_following(user_id: str, db: Session = Depends(get_db)):
-    return crud.get_following(db, user_id=user_id)
+async def get_following(user_id: str, db: Session = Depends(get_db)):
+    users = await asyncio.to_thread(crud.get_following, db, user_id=user_id)
+    return await asyncio.to_thread(_sync_map_users, users)
 
 @router.get("/{user_id}/followers", response_model=List[schemas.User])
-def get_followers(user_id: str, db: Session = Depends(get_db)):
-    return crud.get_followers(db, user_id=user_id)
+async def get_followers(user_id: str, db: Session = Depends(get_db)):
+    users = await asyncio.to_thread(crud.get_followers, db, user_id=user_id)
+    return await asyncio.to_thread(_sync_map_users, users)
 
 @router.get("/{user_id}/posts", response_model=List[schemas.Post])
-def get_user_posts(
+async def get_user_posts(
     user_id: str,
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
 ):
-    return crud.get_user_posts(db, user_id=user_id, skip=skip, limit=limit)
+    posts = await asyncio.to_thread(crud.get_user_posts, db, user_id=user_id, skip=skip, limit=limit)
+    # Mapping to avoid DetachedInstanceError
+    payload = []
+    for p in posts:
+        payload.append({
+            "id": p.id,
+            "user_id": p.user_id,
+            "group_id": p.group_id,
+            "image": p.image,
+            "video": p.video,
+            "caption": p.caption,
+            "created_at": p.created_at,
+            "user": {
+                "id": p.user.id,
+                "username": p.user.username,
+                "is_active": p.user.is_active,
+                "role": p.user.role
+            }
+        })
+    return payload

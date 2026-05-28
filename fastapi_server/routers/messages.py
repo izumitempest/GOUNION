@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import List
 import asyncio
 from .. import crud, schemas, models, dependencies
@@ -26,7 +26,6 @@ class ConnectionManager:
                 try:
                     await self.active_connections[pid].send_json(message)
                 except Exception:
-                    # Connection is dead/broken, mark it for pruning
                     dead_connections.append(pid)
         for pid in dead_connections:
             self.disconnect(pid)
@@ -34,39 +33,141 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 @router.get("/", response_model=List[schemas.Conversation])
-def list_conversations(
+async def list_conversations(
     db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
 ):
-    return crud.get_conversations(db, user_id=current_user.id)
+    # Eager loading happens in crud, but we map to DTO to prevent DetachedInstanceError
+    convs = await asyncio.to_thread(crud.get_conversations, db, user_id=current_user.id)
+    payload = []
+    for c in convs:
+        payload.append({
+            "id": c.id,
+            "name": c.name,
+            "created_at": c.created_at,
+            "participants": [{
+                "id": p.id,
+                "username": p.username,
+                "is_active": p.is_active,
+                "role": p.role,
+                "profile": p.profile
+            } for p in c.participants]
+        })
+    return payload
+
+def _sync_fetch_conversation(db: Session, conversation_id: int) -> dict:
+    c = db.query(models.Conversation).options(selectinload(models.Conversation.participants).joinedload(models.User.profile)).filter(models.Conversation.id == conversation_id).first()
+    if not c: return None
+    return {
+        "id": c.id,
+        "name": c.name,
+        "created_at": c.created_at,
+        "participants": [{
+            "id": p.id,
+            "username": p.username,
+            "is_active": p.is_active,
+            "role": p.role,
+            "profile": p.profile
+        } for p in c.participants]
+    }
 
 @router.get("/{conversation_id}", response_model=schemas.Conversation)
-def get_conversation(
+async def get_conversation(
     conversation_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    conv = db.query(models.Conversation).options(joinedload(models.Conversation.participants)).filter(models.Conversation.id == conversation_id).first()
+    authorized = await asyncio.to_thread(crud.is_user_in_conversation, db, current_user.id, conversation_id)
+    if not authorized:
+        raise HTTPException(status_code=403, detail="Access denied.")
+
+    conv = await asyncio.to_thread(_sync_fetch_conversation, db, conversation_id)
     if not conv:
-        raise HTTPException(status_code=404, detail="Not found")
-    if current_user.id not in [p.id for p in conv.participants]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+        raise HTTPException(status_code=404, detail="Conversation not found.")
     return conv
 
 @router.get("/{conversation_id}/messages/", response_model=List[schemas.Message])
-def get_conversation_messages(
+async def get_conversation_messages(
     conversation_id: int,
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Verify participant
-    conv = db.query(models.Conversation).options(joinedload(models.Conversation.participants)).filter(models.Conversation.id == conversation_id).first()
-    if not conv:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-    if current_user.id not in [p.id for p in conv.participants]:
-        raise HTTPException(status_code=403, detail="Forbidden")
-    return crud.get_messages(db, conversation_id=conversation_id, skip=skip, limit=limit)
+    authorized = await asyncio.to_thread(crud.is_user_in_conversation, db, current_user.id, conversation_id)
+    if not authorized:
+        raise HTTPException(status_code=403, detail="Access denied.")
+    
+    msgs = await asyncio.to_thread(crud.get_messages, db, conversation_id=conversation_id, skip=skip, limit=limit)
+    payload = []
+    for m in msgs:
+        payload.append({
+            "id": m.id,
+            "conversation_id": m.conversation_id,
+            "sender_id": m.sender_id,
+            "content": m.content,
+            "image_url": m.image_url,
+            "video_url": m.video_url,
+            "created_at": m.created_at,
+            "is_read": m.is_read,
+            "sender": m.sender
+        })
+    return payload
+
+def _sync_get_full_message(db: Session, message_id: int):
+    m = db.query(models.Message).options(
+            joinedload(models.Message.sender),
+            joinedload(models.Message.conversation).selectinload(models.Conversation.participants)
+        ).filter(models.Message.id == message_id).first()
+    if not m: return None
+    return {
+        "id": m.id,
+        "conversation_id": m.conversation_id,
+        "sender_id": m.sender_id,
+        "content": m.content,
+        "image_url": m.image_url,
+        "video_url": m.video_url,
+        "created_at": m.created_at,
+        "is_read": m.is_read,
+        "sender": m.sender,
+        "conversation": {
+            "participants": [{"id": p.id} for p in m.conversation.participants]
+        }
+    }
+
+@router.post("/messages/", response_model=schemas.Message)
+async def send_message(
+    message: schemas.MessageCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not message.conversation_id and not message.recipient_id:
+        raise HTTPException(status_code=400, detail="Target missing.")
+
+    if message.conversation_id:
+        authorized = await asyncio.to_thread(crud.is_user_in_conversation, db, current_user.id, message.conversation_id)
+        if not authorized:
+            raise HTTPException(status_code=403, detail="Forbidden.")
+
+    db_message = await asyncio.to_thread(crud.create_message, db, message, current_user.id)
+    db.commit()
+    
+    full_message_data = await asyncio.to_thread(_sync_get_full_message, db, db_message.id)
+
+    if full_message_data:
+        payload = {
+            "type": "new_message",
+            "message": {
+                "id": full_message_data["id"],
+                "conversation_id": full_message_data["conversation_id"],
+                "content": full_message_data["content"],
+                "sender_id": full_message_data["sender_id"],
+                "created_at": full_message_data["created_at"].isoformat(),
+            }
+        }
+        p_ids = [p["id"] for p in full_message_data["conversation"]["participants"]]
+        asyncio.create_task(manager.broadcast_to_conversation(payload, p_ids))
+
+    return full_message_data
 
 @router.post("/{conversation_id}/messages/", response_model=schemas.Message)
 async def create_message(
@@ -75,31 +176,30 @@ async def create_message(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    conv = db.query(models.Conversation).options(joinedload(models.Conversation.participants)).filter(models.Conversation.id == conversation_id).first()
-    if not conv or current_user.id not in [p.id for p in conv.participants]:
-        raise HTTPException(status_code=403, detail="Forbidden")
+    authorized = await asyncio.to_thread(crud.is_user_in_conversation, db, current_user.id, conversation_id)
+    if not authorized:
+        raise HTTPException(status_code=403, detail="Forbidden.")
     
-    # Ensure conversation_id is injected from the URL path, preventing null bugs
-    message.conversation_id = conversation_id
+    db_message = await asyncio.to_thread(crud.create_message, db, message, current_user.id, conversation_id)
+    db.commit()
     
-    db_message = crud.create_message(db, message=message, sender_id=current_user.id)
-    full_message = db.query(models.Message).options(joinedload(models.Message.sender)).filter(models.Message.id == db_message.id).first()
+    full_message_data = await asyncio.to_thread(_sync_get_full_message, db, db_message.id)
     
-    if full_message:
-        msg_payload = {
+    if full_message_data:
+        payload = {
             "type": "new_message",
             "message": {
-                "id": full_message.id,
-                "conversation_id": full_message.conversation_id,
-                "content": full_message.content,
-                "sender_id": full_message.sender_id,
-                "created_at": full_message.created_at.isoformat(),
+                "id": full_message_data["id"],
+                "conversation_id": full_message_data["conversation_id"],
+                "content": full_message_data["content"],
+                "sender_id": full_message_data["sender_id"],
+                "created_at": full_message_data["created_at"].isoformat(),
             }
         }
-        asyncio.create_task(manager.broadcast_to_conversation(msg_payload, [p.id for p in conv.participants]))
+        p_ids = [p["id"] for p in full_message_data["conversation"]["participants"]]
+        asyncio.create_task(manager.broadcast_to_conversation(payload, p_ids))
 
-    return full_message
-
+    return full_message_data
 
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: str):
@@ -111,4 +211,3 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
         pass
     finally:
         manager.disconnect(user_id)
-
