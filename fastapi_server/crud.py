@@ -746,6 +746,35 @@ def get_followers(db: Session, user_id: str):
         .all()
     )
 
+def search_users(db: Session, query: str, limit: int = 20):
+    """Search users by username or profile fields (bio, university)."""
+    if not query or not query.strip():
+        # Empty query: return a random sample of active users
+        return (
+            db.query(models.User)
+            .options(joinedload(models.User.profile))
+            .filter(models.User.is_active == True)
+            .order_by(func.random())
+            .limit(limit)
+            .all()
+        )
+    pattern = f"%{query.strip()}%"
+    return (
+        db.query(models.User)
+        .options(joinedload(models.User.profile))
+        .outerjoin(models.Profile, models.User.id == models.Profile.user_id)
+        .filter(
+            models.User.is_active == True,
+            or_(
+                models.User.username.ilike(pattern),
+                models.Profile.bio.ilike(pattern),
+                models.Profile.university.ilike(pattern),
+            )
+        )
+        .limit(limit)
+        .all()
+    )
+
 def get_user_posts(db: Session, user_id: str, skip: int = 0, limit: int = 50):
     """Get posts by a specific user — eliminates frontend filtering."""
     return (

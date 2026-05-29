@@ -62,6 +62,8 @@ def _sync_map_users(users: List[models.User]) -> List[dict]:
         "is_active": u.is_active,
         "role": u.role,
         "profile": {
+            "id": u.profile.id,
+            "user_id": u.profile.user_id,
             "bio": u.profile.bio,
             "profile_picture": u.profile.profile_picture,
             "university": u.profile.university,
@@ -112,7 +114,7 @@ async def update_location(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    return await asyncio.to_thread(crud.update_location, db, user_id=current_user.id, location=location)
+    return await asyncio.to_thread(crud.update_location, db, user_id=current_user.id, loc=location)
 
 @router.post("/{user_id}/follow", response_model=schemas.StatusMessage)
 async def follow_user(
