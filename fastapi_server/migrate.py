@@ -6,42 +6,24 @@ import sys
 logger = logging.getLogger(__name__)
 
 def apply_migration():
-    """Runs Alembic migrations to keep the database schema in sync."""
+    """Runs Alembic migrations programmatically to keep the database schema in sync."""
+    import os
+    # pyrefly: ignore [missing-import]
+    from alembic.config import Config
+    from alembic import command
     try:
-        # Determine the directory where alembic.ini is located
+        print("[migration] Running Alembic migrations programmatically...")
         base_dir = os.path.dirname(os.path.abspath(__file__))
+        ini_path = os.path.join(base_dir, "alembic.ini")
         
-        # Try to run alembic upgrade head
-        # We use sys.executable to ensure we use the same environment
-        print("[migration] Running Alembic migrations...")
-        result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
-            capture_output=True,
-            text=True,
-            cwd=base_dir
-        )
+        # Initialize Alembic config
+        alembic_cfg = Config(ini_path)
+        # Ensure the script location points to the absolute path of alembic directory
+        alembic_cfg.set_main_option("script_location", os.path.join(base_dir, "alembic"))
         
-        if result.returncode == 0:
-            print("[migration] Database schema is up to date.")
-            if result.stdout.strip():
-                print(result.stdout)
-        else:
-            print(f"[migration] Primary migration command failed (code {result.returncode}). Stdout: {result.stdout} Stderr: {result.stderr}")
-            # If python3 -m alembic fails, try just 'alembic'
-            try:
-                result = subprocess.run(
-                    ["alembic", "upgrade", "head"],
-                    capture_output=True,
-                    text=True,
-                    cwd=base_dir
-                )
-                if result.returncode == 0:
-                    print("[migration] Database schema is up to date (via standalone alembic).")
-                else:
-                    print(f"[migration] Alembic migration fallback failed: {result.stderr}")
-            except FileNotFoundError:
-                print(f"[migration] Standalone 'alembic' executable not found on PATH.")
-                
+        # Run upgrade head
+        command.upgrade(alembic_cfg, "head")
+        print("[migration] Database schema is successfully migrated to head.")
     except Exception as e:
         print(f"[migration] Unexpected error during migration: {e}")
 
