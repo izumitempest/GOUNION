@@ -30,13 +30,12 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         
         try:
             db_user = await asyncio.to_thread(crud.create_user, db=db, user=user, supabase_id=supabase_user_id)
-            db.commit()
-            analytics.identify_user(db_user.id, {
-                "username": db_user.username,
-                "email": db_user.email,
-                "role": db_user.role
+            analytics.identify_user(db_user["id"], {
+                "username": db_user["username"],
+                "email": db_user["email"],
+                "role": db_user["role"]
             })
-            analytics.track_event(db_user.id, "signup", {"method": "email"})
+            analytics.track_event(db_user["id"], "signup", {"method": "email"})
             return db_user
         except Exception as db_exc:
             logger.error(f"LOCAL DB FAILURE for {supabase_user_id}: {db_exc}. Rolling back Supabase...")
@@ -92,21 +91,9 @@ async def update_profile(
     current_user: models.User = Depends(get_current_user),
 ):
     db_profile = await asyncio.to_thread(crud.update_profile_secure, db, user_id=current_user.id, profile_update=profile_update)
-    db.commit()
-    # Simple DTO mapping for single object
-    return {
-        "id": db_profile.id,
-        "user_id": db_profile.user_id,
-        "bio": db_profile.bio,
-        "profile_picture": db_profile.profile_picture,
-        "university": db_profile.university,
-        "profile_type": db_profile.profile_type,
-        "course": db_profile.course,
-        "graduation_year": db_profile.graduation_year,
-        "cover_photo": db_profile.cover_photo,
-        "relationship_status": db_profile.relationship_status,
-        "hometown": db_profile.hometown
-    }
+    if db_profile and "profile_type" not in db_profile:
+        db_profile["profile_type"] = "friend"
+    return db_profile
 
 @router.post("/me/device", response_model=schemas.UserDevice)
 async def register_device(
@@ -117,19 +104,7 @@ async def register_device(
 ):
     if not device.ip_address:
         device.ip_address = request.client.host
-    db_device = await asyncio.to_thread(crud.register_device, db, user_id=current_user.id, device=device)
-    db.commit()
-    return {
-        "id": db_device.id,
-        "user_id": db_device.user_id,
-        "device_name": db_device.device_name,
-        "device_type": db_device.device_type,
-        "os_version": db_device.os_version,
-        "browser": db_device.browser,
-        "ip_address": db_device.ip_address,
-        "fcm_token": db_device.fcm_token,
-        "last_active": db_device.last_active
-    }
+    return await asyncio.to_thread(crud.register_device, db, user_id=current_user.id, device=device)
 
 @router.post("/me/location", response_model=schemas.LocationHistory)
 async def update_location(
@@ -137,17 +112,7 @@ async def update_location(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    db_location = await asyncio.to_thread(crud.update_location, db, user_id=current_user.id, location=location)
-    db.commit()
-    return {
-        "id": db_location.id,
-        "user_id": db_location.user_id,
-        "latitude": db_location.latitude,
-        "longitude": db_location.longitude,
-        "city": db_location.city,
-        "country": db_location.country,
-        "timestamp": db_location.timestamp
-    }
+    return await asyncio.to_thread(crud.update_location, db, user_id=current_user.id, location=location)
 
 @router.post("/{user_id}/follow", response_model=schemas.StatusMessage)
 async def follow_user(

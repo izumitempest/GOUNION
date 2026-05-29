@@ -13,18 +13,7 @@ async def create_group(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    db_group = await asyncio.to_thread(crud.create_group, db, group=group, creator_id=current_user.id)
-    db.commit()
-    return {
-        "id": db_group.id,
-        "name": db_group.name,
-        "description": db_group.description,
-        "cover_image": db_group.cover_image,
-        "privacy": db_group.privacy,
-        "creator_id": db_group.creator_id,
-        "created_at": db_group.created_at,
-        "is_active": db_group.is_active
-    }
+    return await asyncio.to_thread(crud.create_group, db, group=group, creator_id=current_user.id)
 
 @router.get("/", response_model=List[schemas.Group])
 async def list_groups(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):

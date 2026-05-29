@@ -36,23 +36,7 @@ manager = ConnectionManager()
 async def list_conversations(
     db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)
 ):
-    # Eager loading happens in crud, but we map to DTO to prevent DetachedInstanceError
-    convs = await asyncio.to_thread(crud.get_conversations, db, user_id=current_user.id)
-    payload = []
-    for c in convs:
-        payload.append({
-            "id": c.id,
-            "name": c.name,
-            "created_at": c.created_at,
-            "participants": [{
-                "id": p.id,
-                "username": p.username,
-                "is_active": p.is_active,
-                "role": p.role,
-                "profile": p.profile
-            } for p in c.participants]
-        })
-    return payload
+    return await asyncio.to_thread(crud.get_conversations, db, user_id=current_user.id)
 
 def _sync_fetch_conversation(db: Session, conversation_id: int) -> dict:
     c = db.query(models.Conversation).options(selectinload(models.Conversation.participants).joinedload(models.User.profile)).filter(models.Conversation.id == conversation_id).first()
@@ -97,21 +81,7 @@ async def get_conversation_messages(
     if not authorized:
         raise HTTPException(status_code=403, detail="Access denied.")
     
-    msgs = await asyncio.to_thread(crud.get_messages, db, conversation_id=conversation_id, skip=skip, limit=limit)
-    payload = []
-    for m in msgs:
-        payload.append({
-            "id": m.id,
-            "conversation_id": m.conversation_id,
-            "sender_id": m.sender_id,
-            "content": m.content,
-            "image_url": m.image_url,
-            "video_url": m.video_url,
-            "created_at": m.created_at,
-            "is_read": m.is_read,
-            "sender": m.sender
-        })
-    return payload
+    return await asyncio.to_thread(crud.get_messages, db, conversation_id=conversation_id, skip=skip, limit=limit)
 
 def _sync_get_full_message(db: Session, message_id: int):
     m = db.query(models.Message).options(
@@ -149,9 +119,8 @@ async def send_message(
             raise HTTPException(status_code=403, detail="Forbidden.")
 
     db_message = await asyncio.to_thread(crud.create_message, db, message, current_user.id)
-    db.commit()
     
-    full_message_data = await asyncio.to_thread(_sync_get_full_message, db, db_message.id)
+    full_message_data = await asyncio.to_thread(_sync_get_full_message, db, db_message["id"])
 
     if full_message_data:
         payload = {
@@ -181,9 +150,8 @@ async def create_message(
         raise HTTPException(status_code=403, detail="Forbidden.")
     
     db_message = await asyncio.to_thread(crud.create_message, db, message, current_user.id, conversation_id)
-    db.commit()
     
-    full_message_data = await asyncio.to_thread(_sync_get_full_message, db, db_message.id)
+    full_message_data = await asyncio.to_thread(_sync_get_full_message, db, db_message["id"])
     
     if full_message_data:
         payload = {
