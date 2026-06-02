@@ -3,8 +3,6 @@ from datetime import datetime, timezone, timedelta
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session, joinedload, selectinload, aliased
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-
 from sqlalchemy import or_, and_, case, extract, func, text, select, exists, delete, update
 from . import models, schemas
 
@@ -18,16 +16,30 @@ def _safe_commit(db: Session):
         raise
 
 def create_notification(db: Session, user_id: str, sender_id: str, notification_type: str, post_id: int = None, group_id: int = None):
-    """Idempotent notification creator using UPSERT to prevent duplicates."""
+    """Idempotent notification creator that does not rely on migration-specific constraint names."""
     try:
-        values = {"user_id": user_id, "sender_id": sender_id, "type": notification_type, "is_read": False}
-        if post_id is not None:
-            values["post_id"] = post_id
-        if group_id is not None:
-            values["group_id"] = group_id
-        db.execute(
-            pg_insert(models.Notification).values(**values).on_conflict_do_nothing(constraint="uq_notification_dedup")
+        existing = (
+            db.query(models.Notification.id)
+            .filter(
+                models.Notification.user_id == user_id,
+                models.Notification.sender_id == sender_id,
+                models.Notification.type == notification_type,
+                models.Notification.post_id == post_id,
+                models.Notification.group_id == group_id,
+            )
+            .first()
         )
+        if not existing:
+            db.add(
+                models.Notification(
+                    user_id=user_id,
+                    sender_id=sender_id,
+                    type=notification_type,
+                    post_id=post_id,
+                    group_id=group_id,
+                    is_read=False,
+                )
+            )
         db.commit()
     except Exception:
         db.rollback()
@@ -146,18 +158,51 @@ def update_post_secure_transactional(db: Session, post_id: int, user_id: str, po
         db.rollback()
         raise
 
+def get_post_likes_count(db: Session, post_id: int) -> int:
+    return (
+        db.query(func.count(models.post_likes.c.user_id))
+        .filter(models.post_likes.c.post_id == post_id)
+        .scalar()
+        or 0
+    )
+
 def add_post_like_ultra_performance(db: Session, post_id: int, user_id: str) -> bool:
     try:
-        like_stmt = pg_insert(models.post_likes).values(post_id=post_id, user_id=user_id).on_conflict_do_nothing(constraint="uq_post_user_likes")
-        like_result = db.execute(like_stmt)
-        
-        if like_result.rowcount > 0:
-            post_author_id = db.query(models.Post.user_id).filter(models.Post.id == post_id).scalar()
+        post_author_id = db.query(models.Post.user_id).filter(models.Post.id == post_id).scalar()
+        if not post_author_id:
+            return False
+
+        existing_like = db.execute(
+            select(models.post_likes.c.user_id).where(
+                models.post_likes.c.post_id == post_id,
+                models.post_likes.c.user_id == user_id,
+            )
+        ).first()
+
+        if not existing_like:
+            db.execute(models.post_likes.insert().values(post_id=post_id, user_id=user_id))
             if post_author_id and post_author_id != user_id:
-                notif_stmt = pg_insert(models.Notification).values(
-                    user_id=post_author_id, sender_id=user_id, type="like", post_id=post_id, is_read=False
-                ).on_conflict_do_nothing(constraint="uq_notification_dedup")
-                db.execute(notif_stmt)
+                notification_exists = (
+                    db.query(models.Notification.id)
+                    .filter(
+                        models.Notification.user_id == post_author_id,
+                        models.Notification.sender_id == user_id,
+                        models.Notification.type == "like",
+                        models.Notification.post_id == post_id,
+                        models.Notification.group_id.is_(None),
+                    )
+                    .first()
+                )
+                if not notification_exists:
+                    db.add(
+                        models.Notification(
+                            user_id=post_author_id,
+                            sender_id=user_id,
+                            type="like",
+                            post_id=post_id,
+                            is_read=False,
+                        )
+                    )
             db.commit()
             return True
         db.commit()
@@ -311,7 +356,27 @@ def create_comment_transactional(db: Session, comment_data: schemas.CommentCreat
         db.flush()
         post_author_id = db.query(models.Post.user_id).filter(models.Post.id == post_id).scalar()
         if post_author_id and post_author_id != user_id:
-            db.execute(pg_insert(models.Notification).values(user_id=post_author_id, sender_id=user_id, type="comment", post_id=post_id, is_read=False).on_conflict_do_nothing(constraint="uq_notification_dedup"))
+            notification_exists = (
+                db.query(models.Notification.id)
+                .filter(
+                    models.Notification.user_id == post_author_id,
+                    models.Notification.sender_id == user_id,
+                    models.Notification.type == "comment",
+                    models.Notification.post_id == post_id,
+                    models.Notification.group_id.is_(None),
+                )
+                .first()
+            )
+            if not notification_exists:
+                db.add(
+                    models.Notification(
+                        user_id=post_author_id,
+                        sender_id=user_id,
+                        type="comment",
+                        post_id=post_id,
+                        is_read=False,
+                    )
+                )
         db.commit()
         return {"id": db_comment.id, "content": db_comment.content, "user_id": db_comment.user_id, "post_id": db_comment.post_id, "created_at": db_comment.created_at}
     except Exception:
@@ -322,8 +387,36 @@ def create_comment_transactional(db: Session, comment_data: schemas.CommentCreat
 
 def follow_user_transactional(db: Session, follower_id: str, following_id: str):
     try:
-        db.execute(pg_insert(models.Follow).values(follower_id=follower_id, following_id=following_id).on_conflict_do_nothing())
-        db.execute(pg_insert(models.Notification).values(user_id=following_id, sender_id=follower_id, type="follow", is_read=False).on_conflict_do_nothing(constraint="uq_notification_dedup"))
+        existing_follow = (
+            db.query(models.Follow.id)
+            .filter(
+                models.Follow.follower_id == follower_id,
+                models.Follow.following_id == following_id,
+            )
+            .first()
+        )
+        if not existing_follow:
+            db.add(models.Follow(follower_id=follower_id, following_id=following_id))
+        notification_exists = (
+            db.query(models.Notification.id)
+            .filter(
+                models.Notification.user_id == following_id,
+                models.Notification.sender_id == follower_id,
+                models.Notification.type == "follow",
+                models.Notification.post_id.is_(None),
+                models.Notification.group_id.is_(None),
+            )
+            .first()
+        )
+        if not notification_exists:
+            db.add(
+                models.Notification(
+                    user_id=following_id,
+                    sender_id=follower_id,
+                    type="follow",
+                    is_read=False,
+                )
+            )
         db.commit()
         return True
     except Exception:
@@ -1137,6 +1230,14 @@ def like_comment(db: Session, comment_id: int, user_id: str):
 
     db.commit()
     return is_liked
+
+def get_comment_likes_count(db: Session, comment_id: int) -> int:
+    return (
+        db.query(func.count(models.comment_likes.c.user_id))
+        .filter(models.comment_likes.c.comment_id == comment_id)
+        .scalar()
+        or 0
+    )
 
 def remove_group_member(db: Session, group_id: int, user_id: str):
     member = db.query(models.GroupMember).filter(

@@ -52,16 +52,23 @@ async def update_post(
         raise HTTPException(status_code=403, detail="Not authorized or post not found")
     return {"status": "success", "message": "Post updated"}
 
-@router.post("/{post_id}/like", response_model=schemas.StatusMessage)
+@router.post("/{post_id}/like", response_model=schemas.LikeResponse)
 async def like_post(
     post_id: int,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
     added = await asyncio.to_thread(crud.add_post_like_ultra_performance, db, post_id, current_user.id)
+    likes_count = await asyncio.to_thread(crud.get_post_likes_count, db, post_id)
+    if not added and likes_count == 0:
+        post_exists = await asyncio.to_thread(
+            lambda: db.query(models.Post.id).filter(models.Post.id == post_id).first()
+        )
+        if not post_exists:
+            raise HTTPException(status_code=404, detail="Post not found")
     if added:
         analytics.track_event(current_user.id, "post_liked", {"post_id": post_id})
-    return {"status": "success", "message": "Post liked" if added else "Post already liked"}
+    return {"status": "success", "likes_count": likes_count}
 
 @router.delete("/{post_id}/like", response_model=schemas.StatusMessage)
 async def unlike_post(

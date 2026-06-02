@@ -1,15 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from supabase import create_client, Client
 import asyncio
 import os
 import httpx
 import logging
-from .. import crud, schemas, dependencies, analytics
-from ..dependencies import get_db, supabase
+from .. import schemas, analytics
+from ..dependencies import get_db, supabase, SUPABASE_URL, SUPABASE_KEY
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
+
+
+def get_auth_client() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 @router.post("/token", response_model=schemas.Token)
 async def login_for_access_token(
@@ -22,8 +28,9 @@ async def login_for_access_token(
                 detail="Username must be an email address"
             )
 
+        auth_client = get_auth_client()
         response = await asyncio.to_thread(
-            supabase.auth.sign_in_with_password,
+            auth_client.auth.sign_in_with_password,
             {
                 "email": form_data.username,
                 "password": form_data.password,
@@ -55,6 +62,38 @@ async def login_for_access_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=detail,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+@router.post("/refresh", response_model=schemas.Token)
+async def refresh_access_token(body: schemas.RefreshTokenRequest):
+    try:
+        auth_client = get_auth_client()
+        response = await asyncio.to_thread(
+            auth_client.auth.refresh_session,
+            body.refresh_token,
+        )
+
+        if not response.session:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        return {
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+            "token_type": "bearer",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[auth] Session refresh failed: %r", e)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 

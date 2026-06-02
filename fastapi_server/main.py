@@ -2,6 +2,7 @@ import os
 import logging
 import traceback
 from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
 
 from fastapi import Depends, FastAPI, Request
@@ -11,13 +12,13 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
 
 from typing import Optional
 from urllib.parse import quote
 from . import migrate, schemas
 from .dependencies import get_db
-from .routers import auth, users, posts, groups, messages, admin, media, stories, notifications, search
+from .routers import auth, users, posts, groups, messages, admin, media, stories, notifications, search, comments
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
@@ -28,12 +29,15 @@ app = FastAPI(title="GoUnion API")
 # Startup Migrations
 @app.on_event("startup")
 async def startup_event():
-    migrate.apply_migration()
+    if os.getenv("RUN_STARTUP_MIGRATIONS", "true").lower() in {"1", "true", "yes"}:
+        migrate.apply_migration()
+    else:
+        logger.info("[migration] Skipping startup migrations.")
 
 # CORS Configuration
 _raw_origins = os.getenv(
     "ALLOWED_ORIGINS",
-    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,https://gounion-download.vercel.app"
+    "https://gounion-frontend.onrender.com,http://localhost:3000,http://localhost:3000/,http://localhost:5173,http://127.0.0.1:3000,https://gounion-download.vercel.app"
 )
 ALLOWED_ORIGINS = [o.strip().rstrip("/") for o in _raw_origins.split(",") if o.strip()]
 
@@ -43,6 +47,10 @@ REQUIRED_FRONTEND_ORIGINS = [
     "https://gou-frontend.vercel.app",
     "https://gounion-frontend.onrender.com",
     "https://gounion-download.vercel.app",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 REQUIRED_MOBILE_ORIGINS = [
     "http://localhost",
@@ -53,17 +61,9 @@ REQUIRED_MOBILE_ORIGINS = [
     "https://10.0.2.2",
 ]
 for origin in [*REQUIRED_FRONTEND_ORIGINS, *REQUIRED_MOBILE_ORIGINS]:
-    if origin not in ALLOWED_ORIGINS:
-        ALLOWED_ORIGINS.append(origin)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=r"^(https?|capacitor|ionic)://localhost(:\d+)?$",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    normalized_origin = origin.strip().rstrip("/")
+    if normalized_origin not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(normalized_origin)
 
 # Global Exception Handler
 @app.exception_handler(Exception)
@@ -80,10 +80,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         }
     )
 
-# Static Files
-os.makedirs("media", exist_ok=True)
-app.mount("/media", StaticFiles(directory="media"), name="media")
-
 # Include Routers
 app.include_router(auth.router)
 app.include_router(users.router)
@@ -95,6 +91,12 @@ app.include_router(media.router)
 app.include_router(stories.router)
 app.include_router(notifications.router)
 app.include_router(search.router)
+app.include_router(comments.router)
+
+# Static files must be mounted after API routers so /media/upload is handled
+# by the media router instead of the static-file app.
+os.makedirs("media", exist_ok=True)
+app.mount("/media", StaticFiles(directory="media"), name="media")
 
 @app.post("/token", response_model=schemas.Token)
 async def login_for_access_token(
@@ -170,3 +172,15 @@ async def mobile_version(current_version: Optional[str] = None):
         "current_version": current_version,
         "release_notes": release_notes,
     }
+
+
+# Keep CORS as the outermost ASGI layer so even debug/server-error responses
+# include browser-readable CORS headers.
+app = CORSMiddleware(
+    app,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"^(https?|capacitor|ionic)://(localhost|127\.0\.0\.1|10\.0\.2\.2)(:\d+)?$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
